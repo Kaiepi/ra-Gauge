@@ -27,7 +27,7 @@ class It does Iterator {
         nqp::getcodeobj($!block)
     }
 
-    method pull-one(::?CLASS:D:) is raw {
+    method pull-one(::?CLASS:D: --> int) {
         # XXX: A monotonic solution via Inline::Perl5 takes too long to take
         # the time, slashing the number of iterations that can be counted. A
         # NativeCall solution is apt to have the similar problems. Using &now
@@ -56,7 +56,7 @@ class Poller does Iterator {
         $!it      := $it<>;
     }
 
-    method pull-one(::?CLASS:D:) is raw {
+    method pull-one(::?CLASS:D: --> int) {
         use nqp;
         nqp::stmts(
           (my int $ns = $!ns),
@@ -80,7 +80,7 @@ class Throttler does Iterator {
         $!sleeps  = False;
     }
 
-    method pull-one(::?CLASS:D:) is raw {
+    method pull-one(::?CLASS:D: --> int) {
         use nqp;
         nqp::stmts(
           nqp::if(
