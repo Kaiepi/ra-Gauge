@@ -1,0 +1,46 @@
+use v6.d;
+use Test;
+use Gauge;
+
+{
+    my $calls = 0;
+    my &block = -> --> True { $calls++ }; 
+    my $it = Gauge::It.new: :&block;
+    ok $it ~~ Gauge::Iterator, 'Gauge::It is a type of Gauge::Iterator...';
+    lives-ok {
+        isa-ok $it.pull-one, Int, '...which produces an integer duration...';
+        ok $calls, '...given a call to the block...';
+    }, '...despite any container it may carry';
+};
+
+{
+    my $it = Gauge::Poller.new: :1seconds, it => Gauge::It.new: :block(-> --> True { sleep 0.5 });
+    ok $it ~~ Gauge::Iterator, 'Gauge::Poller is a type of Gauge::Iterator...';
+    isa-ok $it.pull-one, Int, '...which produces an integer count...';
+    my $begin := now;
+    my $count := $it.pull-one;
+    my $end := now;
+    ok 1 <= $count <= 2, '...which is reasonable...';
+    cmp-ok $end - $begin, &[>=], 1, '...taking at least its duration to complete';
+}
+
+{
+    my $it = Gauge::Throttler.new: :1seconds, it => Gauge::It.new: :block(-> --> True { (+*...*) });
+    ok $it ~~ Gauge::Iterator, 'Gauge::Throttler is a type of Gauge::Iterator...';
+    my @stamps[2];
+    my $begin := now;
+    my $stamp := $it.pull-one;
+    @stamps[0] := now - $begin;
+    isa-ok $stamp, Int, '...which transparently wraps its iterator...';
+    $begin := now;
+    $it.pull-one;
+    @stamps[1] := now - $begin;
+    cmp-ok @stamps[1], &[>], @stamps[0], '...performing a cooldown between iterations';
+}
+
+{
+    my $begin := now;
+    Gauge(-> { <0> <=> <0> }).throttle(1).skip(2);
+    my $end := now;
+    cmp-ok $end - $begin, &[>=], 1, 'skipping gauged iterations produces their side effects anyway';
+}

@@ -1,0 +1,13 @@
+name: Build Status
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Test Gauge
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+    - name: Run tests
+      uses: Kaiepi/raku-container-action@main

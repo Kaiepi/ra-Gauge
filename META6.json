@@ -1,0 +1,19 @@
+{
+  "authors": [ "Ben Davies" ],
+  "build-depends": [ ],
+  "depends": [ ],
+  "description": "Iterative polling",
+  "license": "Artistic-2.0",
+  "name": "Gauge",
+  "perl": "6.d",
+  "provides": {
+    "Gauge": "lib/Gauge.rakumod"
+  },
+  "resources": [ ],
+  "source-url": "",
+  "tags": [ "benchmark" ],
+  "test-depends": [ ],
+  "version": "0.0.1",
+  "auth": "github:Kaiepi",
+  "api": "0"
+}
