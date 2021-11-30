@@ -10,4 +10,4 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v1
     - name: Run tests
-      uses: Kaiepi/raku-container-action@main
+      uses: Raku/setup-raku@v1
