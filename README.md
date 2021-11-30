@@ -19,13 +19,14 @@ use Gauge;
 DESCRIPTION
 ===========
 
-Gauge attempts to time iterations of a block as accurately as is doable from
+`Gauge` attempts to time iterations of a block as accurately as is doable from
 within the realms of Raku. While this does not make for a very sophisticated
 benchmark on its own by virtue of its limitations, this may provide raw input
-for such a utility. A proper benchmark based on Gauge would perform statistics
+for such a utility. A proper benchmark based on `Gauge` would perform statistics
 to ensure leap seconds and hardware errors have a harder time influencing
-results, as this module cannot measure time monotonically without the overhead
-of doing so carrying a greater influence over its results.
+results (as this module cannot measure time monotonically without the overhead
+of doing so carrying a greater influence over its results), while ensuring a
+result is small enough not to overflow a native `int` (of size `$?BITS`).
 
 AUTHOR
 ======
