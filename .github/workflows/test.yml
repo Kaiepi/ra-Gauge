@@ -9,5 +9,7 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v1
-    - name: Run tests
+    - name: Install Raku
       uses: Raku/setup-raku@v1
+    - name: Run tests
+      run: raku -Ilib t/*.rakutest
