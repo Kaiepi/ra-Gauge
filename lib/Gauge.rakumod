@@ -1,5 +1,5 @@
 use v6.d;
-unit class Gauge:ver<0.0.1>:auth<github:Kaiepi>:ver<0.0.1> is Seq;
+unit class Gauge:ver<0.0.1>:auth<github:Kaiepi>:api<0> is Seq;
 
 #|[ A lazy, non-deterministic iterator that evaluates side effects when
     skipping rather than sinking. ]
