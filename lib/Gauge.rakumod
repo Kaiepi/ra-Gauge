@@ -62,7 +62,7 @@ class Poller does Iterator {
           (my int $ns = $!ns),
           (my $n = 0),
           nqp::force_gc(),
-          nqp::repeat_while(
+          nqp::while(
             nqp::isge_i(($ns = nqp::sub_i($ns, $!it.pull-one)), 0),
             ($n++)),
           $n)
