@@ -1,3 +1,5 @@
+![Build Status](https://github.com/Kaiepi/ra-Gauge/actions/workflows/test.yml/badge.svg)
+
 NAME
 ====
 
