@@ -11,7 +11,8 @@ SYNOPSIS
 ```raku
 use v6.d;
 use Gauge;
-# How fast can 1..100 be sunk? Take an estimate every 20 seconds:
+# How fast can 1..100 be sunk? Take an estimate of how many iterations can be
+# completed in 1 second every 20 seconds:
 .say for Gauge(-> --> Nil { 1..100 }).poll(1).throttle(19);
 ```
 
