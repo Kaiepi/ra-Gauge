@@ -16,7 +16,7 @@ use Gauge;
 DESCRIPTION
 ===========
 
-Gauge's attempts to time iterations of a block as accurately as is doable from
+Gauge attempts to time iterations of a block as accurately as is doable from
 within the realms of Raku. While this does not make for a very sophisticated
 benchmark on its own by virtue of its limitations, this may provide raw input
 for such a utility. A sophisticated benchmark based on Gauge would perform
