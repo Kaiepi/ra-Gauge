@@ -28,8 +28,8 @@ class Gauge is Seq { ... }
 METHODS
 =======
 
-method CALL-ME
---------------
+CALL-ME
+-------
 
 ```raku
 method CALL-ME(::?CLASS:_: Block:D $block --> ::?CLASS:D)
@@ -39,8 +39,8 @@ Produces a lazy sequence of native `int` durations of a call to the given block.
 
 Any `Gauge` sequence will evauate side effects during a `skip` rather than a `sink`, allowing for a warmup period.
 
-method poll
------------
+poll
+----
 
 ```raku
 method poll(::?CLASS:D: Real:D $seconds --> ::?CLASS:D)
@@ -48,8 +48,8 @@ method poll(::?CLASS:D: Real:D $seconds --> ::?CLASS:D)
 
 Returns a new `Gauge` sequence that produces an `Int:D` count of iterations of the former over a duration of `$seconds`.
 
-method throttle
----------------
+throttle
+--------
 
 ```raku
 method throttle(::?CLASS:D: Real:D $seconds --> ::?CLASS:D)
