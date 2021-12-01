@@ -11,5 +11,7 @@ jobs:
       uses: actions/checkout@v1
     - name: Install Raku
       uses: Raku/setup-raku@v1
-    - name: Run tests
-      run: raku -Ilib t/*.rakutest
+    - name: Install App::Prove6
+      run: zef install --/test App::Prove6
+    - name: Test
+      run: prove6 -l t
