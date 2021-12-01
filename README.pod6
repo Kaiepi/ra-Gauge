@@ -36,8 +36,7 @@ method CALL-ME(::?CLASS:_: Block:D $block --> ::?CLASS:D)
 Produces a lazy sequence of native C<int> durations of a call to the given
 block. As such, the size of a duration is constrained by C<$?BITS> and is
 prone to overflows. Measurements of each duration are B<not> monotonic, thus
-leap seconds and hardware errors will skew results.  Being a native C<int>, its
-size is restricted by C<$?BITS>.
+leap seconds and hardware errors will skew results.
 
 Any C<Gauge> sequence will evauate side effects during a C<skip> rather than a
 C<sink>, allowing for a warmup period.
