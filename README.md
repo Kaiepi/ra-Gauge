@@ -37,7 +37,7 @@ CALL-ME
 method CALL-ME(::?CLASS:_: Block:D $block --> ::?CLASS:D)
 ```
 
-Produces a new `Gauge` sequence of native `int` durations of a call to the given block. As such, the size of a duration is constrained by `$?BITS` and is prone to overflows. Measurements of each duration are **not** monotonic, thus leap seconds and hardware errors will skew results.
+Produces a new `Gauge` sequence of native `int` durations of a call to the given block. As such, the size of a duration is constrained by `$?BITS` and is prone to underflows. Measurements of each duration are **not** monotonic, thus leap seconds and hardware errors will skew results.
 
 poll
 ----
