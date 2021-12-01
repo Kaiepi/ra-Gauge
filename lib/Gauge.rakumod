@@ -30,7 +30,7 @@ class It does Iterator {
         nqp::getcodeobj($!block)
     }
 
-    method pull-one is raw {
+    method pull-one(--> int) is raw {
         # XXX: A monotonic solution via Inline::Perl5 takes too long to take
         # the time, slashing the number of iterations that can be counted. A
         # NativeCall solution is apt to have the similar problems. Using &now
@@ -70,7 +70,7 @@ class Poller does Iterator {
           nqp::while(
             nqp::isge_i(($ns = nqp::sub_i($ns, $!it.pull-one)), 0),
             ($n++)),
-          $n)
+          nqp::decont($n))
     }
 }
 

@@ -26,7 +26,7 @@ for such a utility. A proper benchmark based on `Gauge` would perform statistics
 to ensure leap seconds and hardware errors have a harder time influencing
 results (as this module cannot measure time monotonically without the overhead
 of doing so carrying a greater influence over its results), while ensuring a
-result is small enough not to overflow a native `int` (of size `$?BITS`).
+duration is small enough not to overflow a native `int` (of size `$?BITS`).
 
 AUTHOR
 ======
