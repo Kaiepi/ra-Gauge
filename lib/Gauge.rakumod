@@ -11,6 +11,8 @@ role Iterator does Iterator {
     method skip-one(::?CLASS:D: --> True) { self.pull-one }
 
     method sink-all(::?CLASS:D: --> IterationEnd) { }
+
+    method block(::?CLASS:D: --> Block:D) { ... }
 }
 
 #|[ Produces a nanosecond duration of a call to a block. ]
@@ -20,11 +22,6 @@ class It does Iterator {
     submethod BUILD(::?CLASS:D: Block:D :$block! --> Nil) {
         use nqp;
         $!block := nqp::getattr(nqp::decont($block), Code, '$!do');
-    }
-
-    method block(::?CLASS:D: --> Block:D) {
-        use nqp;
-        nqp::getcodeobj($!block)
     }
 
     method pull-one is raw {
@@ -39,6 +36,11 @@ class It does Iterator {
           (my int $begin = nqp::time()),
           nqp::call($!block),
           nqp::sub_i(nqp::time(), $begin))
+    }
+
+    method block(::?CLASS:D: --> Block:D) {
+        use nqp;
+        nqp::getcodeobj($!block)
     }
 }
 #=[ This is based off the real clock time, and isn't monotonic as a
@@ -55,6 +57,8 @@ class Poller does Iterator {
         $!ns       = $seconds * 1_000_000_000 +^ 0;
         $!it      := $it<>;
     }
+
+    method block(::?CLASS:D: --> Block:D) { $!it.block }
 
     method pull-one is raw {
         use nqp;
@@ -79,6 +83,8 @@ class Throttler does Iterator {
         $!it     := $it<>;
         $!sleeps  = False;
     }
+
+    method block(::?CLASS:D: --> Block:D) { $!it.block }
 
     method pull-one is raw {
         use nqp;
