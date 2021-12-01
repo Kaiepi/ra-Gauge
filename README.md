@@ -46,7 +46,7 @@ poll
 method poll(::?CLASS:D: Real:D $seconds --> ::?CLASS:D)
 ```
 
-Returns a new `Gauge` sequence that produces an `Int:D` count of iterations of the former over a duration of `$seconds`.
+Returns a new `Gauge` sequence that produces an `Int:D` count of iterations of the former totalling a duration of `$seconds`. This will take longer than the given argument to complete due to the overhead of iteration.
 
 throttle
 --------

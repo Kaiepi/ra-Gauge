@@ -47,7 +47,8 @@ leap seconds and hardware errors will skew results.
 method poll(::?CLASS:D: Real:D $seconds --> ::?CLASS:D)
 
 Returns a new C<Gauge> sequence that produces an C<Int:D> count of iterations
-of the former over a duration of C<$seconds>.
+of the former totalling a duration of C<$seconds>. This will take longer than
+the given argument to complete due to the overhead of iteration.
 
 =head2 throttle
 
