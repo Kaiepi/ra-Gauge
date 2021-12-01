@@ -26,6 +26,9 @@ within the realms of Raku. While this does not make for a very sophisticated
 benchmark on its own by virtue of its limitations, this may provide raw input
 for such a utility.
 
+Any C<Gauge> sequence will evauate side effects during a C<skip> rather than a
+C<sink>, allowing for a warmup period.
+
 =head1 METHODS
 
 =head2 CALL-ME
@@ -37,9 +40,6 @@ Produces a lazy sequence of native C<int> durations of a call to the given
 block. As such, the size of a duration is constrained by C<$?BITS> and is
 prone to overflows. Measurements of each duration are B<not> monotonic, thus
 leap seconds and hardware errors will skew results.
-
-Any C<Gauge> sequence will evauate side effects during a C<skip> rather than a
-C<sink>, allowing for a warmup period.
 
 =head2 poll
 
