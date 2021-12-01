@@ -25,7 +25,7 @@ class Gauge is Seq { ... }
 
 `Gauge` attempts to time iterations of a block as accurately as is doable from within the realms of Raku. While this does not make for a very sophisticated benchmark on its own by virtue of its limitations, this may provide raw input for such a utility.
 
-Any `Gauge` sequence will evauate side effects during a `skip` rather than a `sink`, allowing for a warmup period.
+Any `Gauge` sequence will be lazy and non-deterministic. These evaluate side effects during a `skip` rather than a `sink`, allowing for a warmup period.
 
 METHODS
 =======
@@ -37,7 +37,7 @@ CALL-ME
 method CALL-ME(::?CLASS:_: Block:D $block --> ::?CLASS:D)
 ```
 
-Produces a lazy sequence of native `int` durations of a call to the given block. As such, the size of a duration is constrained by `$?BITS` and is prone to overflows. Measurements of each duration are **not** monotonic, thus leap seconds and hardware errors will skew results.
+Produces a new `Gauge` sequence of native `int` durations of a call to the given block. As such, the size of a duration is constrained by `$?BITS` and is prone to overflows. Measurements of each duration are **not** monotonic, thus leap seconds and hardware errors will skew results.
 
 poll
 ----
