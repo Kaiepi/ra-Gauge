@@ -19,7 +19,43 @@ use Gauge;
 DESCRIPTION
 ===========
 
-`Gauge` attempts to time iterations of a block as accurately as is doable from within the realms of Raku. While this does not make for a very sophisticated benchmark on its own by virtue of its limitations, this may provide raw input for such a utility. A proper benchmark based on `Gauge` would perform statistics to ensure leap seconds and hardware errors have a harder time influencing results (as this module cannot measure time monotonically without the overhead of doing so carrying a greater influence over its results), while ensuring a duration is small enough not to overflow a native `int`.
+```raku
+class Gauge is Seq { ... }
+```
+
+`Gauge` attempts to time iterations of a block as accurately as is doable from within the realms of Raku. While this does not make for a very sophisticated benchmark on its own by virtue of its limitations, this may provide raw input for such a utility.
+
+METHODS
+=======
+
+method CALL-ME
+--------------
+
+```raku
+method CALL-ME(::?CLASS:_: Block:D $block --> ::?CLASS:D)
+```
+
+Produces a lazy sequence of native `int` durations of a call to the given block. As such, the size of a duration is constrained by `$?BITS` and is prone to overflows. Measurements of each duration are **not** monotonic, thus leap seconds and hardware errors will skew results. Being a native `int`, its size is restricted by `$?BITS`.
+
+Any `Gauge` sequence will evauate side effects during a `skip` rather than a `sink`, allowing for a warmup period.
+
+method poll
+-----------
+
+```raku
+method poll(::?CLASS:D: Real:D $seconds --> ::?CLASS:D)
+```
+
+Returns a new `Gauge` sequence that produces an `Int:D` count of iterations of the former over a duration of `$seconds`.
+
+method throttle
+---------------
+
+```raku
+method throttle(::?CLASS:D: Real:D $seconds --> ::?CLASS:D)
+```
+
+Returns a new `Gauge` sequence that will sleep `$seconds` between iterations of the former.
 
 AUTHOR
 ======

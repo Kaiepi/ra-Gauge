@@ -18,14 +18,45 @@ use Gauge;
 
 =head1 DESCRIPTION
 
+=for code :lang<raku>
+class Gauge is Seq { ... }
+
 C<Gauge> attempts to time iterations of a block as accurately as is doable from
 within the realms of Raku. While this does not make for a very sophisticated
 benchmark on its own by virtue of its limitations, this may provide raw input
-for such a utility. A proper benchmark based on C<Gauge> would perform
-statistics to ensure leap seconds and hardware errors have a harder time
-influencing results (as this module cannot measure time monotonically without
-the overhead of doing so carrying a greater influence over its results), while
-ensuring a duration is small enough not to overflow a native C<int>.
+for such a utility.
+
+=head1 METHODS
+
+=head2 method CALL-ME
+
+=for code :lang<raku>
+method CALL-ME(::?CLASS:_: Block:D $block --> ::?CLASS:D)
+
+Produces a lazy sequence of native C<int> durations of a call to the given
+block. As such, the size of a duration is constrained by C<$?BITS> and is
+prone to overflows. Measurements of each duration are B<not> monotonic, thus
+leap seconds and hardware errors will skew results.  Being a native C<int>, its
+size is restricted by C<$?BITS>.
+
+Any C<Gauge> sequence will evauate side effects during a C<skip> rather than a
+C<sink>, allowing for a warmup period.
+
+=head2 method poll
+
+=for code :lang<raku>
+method poll(::?CLASS:D: Real:D $seconds --> ::?CLASS:D)
+
+Returns a new C<Gauge> sequence that produces an C<Int:D> count of iterations
+of the former over a duration of C<$seconds>.
+
+=head2 method throttle
+
+=for code :lang<raku>
+method throttle(::?CLASS:D: Real:D $seconds --> ::?CLASS:D)
+
+Returns a new C<Gauge> sequence that will sleep C<$seconds> between iterations
+of the former.
 
 =head1 AUTHOR
 

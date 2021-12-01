@@ -97,7 +97,8 @@ class Throttler does Iterator {
     }
 }
 
-#|[ Produces a new lazy Gauge sequence given a block to iterate via Gauge::It. ]
+#|[ Produces a lazy sequence of native integer durations of calls to the given
+    block via Gauge::It. ]
 method CALL-ME(::?CLASS:_: Block:D $block --> ::?CLASS:D) {
     self.new: It.new: :$block
 }
