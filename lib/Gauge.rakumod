@@ -1,11 +1,11 @@
 use v6.d;
 die 'A VM version of v2020.04 or later is required for the nqp::time op' if $*VM.version < v2020.04;
-#=[ If False, Gauge will perform a garbage collection before an intensive
-    iteration. This allows for more stable results, but these will approach,
-    but never quite reach the epitomistical result, which should be possible to
-    achieve with enough time otherwise. This is the default on backends
-    supporting garbage collection. ]
-INIT my $PROCESS::GAUGE-RAW = $*VM.name eq <moar jvm>.none; # NOTE: No GC in the JS backend as of v2020.10.
+# If False, Gauge will perform a garbage collection before an intensive
+# iteration. This allows for more stable results, but these will approach, but
+# never quite reach the epitomistical result, which should be possible to
+# achieve with enough time otherwise. This is the default on backends
+# supporting garbage collection.
+INIT PROCESS::<$GAUGE-RAW> := so $*VM.name eq <moar jvm>.none; # NOTE: No GC in the JS backend as of v2020.10.
 unit class Gauge:ver<0.0.1>:auth<github:Kaiepi>:api<0> is Seq;
 
 #|[ A lazy, non-deterministic iterator that evaluates side effects when
