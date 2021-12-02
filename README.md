@@ -27,7 +27,7 @@ class Gauge is Seq { ... }
 
 Any `Gauge` sequence will be lazy and non-deterministic. These evaluate side effects during a `skip` rather than a `sink`, allowing for a warmup period.
 
-The `$*GAUGE-RAW` dynamic variable toggles garbage collection before intensive iterations in general, i.e. those of `poll` currently. By default, this will be `False` on MoarVM and the JVM. If set to `True`, iterations are very likely to be skewed by any interruption due to GC, but with enough time and luck, the epitomistical result should be possible to achieve, which we can only approach otherwise.
+The `$*GAUGE-RAW` dynamic variable toggles garbage collection before intensive iterations in general, i.e. those of `poll` currently. By default, this will be `False` on MoarVM and the JVM. If set to `True`, iterations are very likely to be skewed by any interruption due to GC, but with enough time and luck, the greatest of ideal results should be achievable.
 
 METHODS
 =======

@@ -2,9 +2,9 @@ use v6.d;
 die 'A VM version of v2020.04 or later is required for the nqp::time op' if $*VM.version < v2020.04;
 # If False, Gauge will perform a garbage collection before an intensive
 # iteration. This allows for more stable results, but these will approach, but
-# never quite reach the epitomistical result, which should be possible to
-# achieve with enough time otherwise. This is the default on backends
-# supporting garbage collection.
+# never quite reach the greatest of ideal results, which should be possible to
+# achieve with enough time and tinkering otherwise. This is the default on
+# backends supporting garbage collection.
 INIT PROCESS::<$GAUGE-RAW> := so $*VM.name eq <moar jvm>.none; # NOTE: No GC in the JS backend as of v2020.10.
 unit class Gauge:ver<0.0.1>:auth<github:Kaiepi>:api<0> is Seq;
 
@@ -71,7 +71,7 @@ role Poller does Iterator {
 }
 
 #|[ Counts iterations over a nanosecond duration with garbage collection
-    beforehand to give more stable, but only close to ideal results. ]
+    beforehand to give stable results. ]
 class Poller::Collected does Poller {
     method raw(::?CLASS:_: --> False) { }
 
@@ -87,8 +87,8 @@ class Poller::Collected does Poller {
           nqp::decont($n))
     }
 }
-#=[ With enough time, a Poller::Raw is capable of producing a higher, more
-    accurate iteration count when uninterrupted by GC. ]
+#|[ This should approach producing the most ideal scenario for an iteration
+    with regards to memory, but not quite manage to pull it off. ]
 
 #|[ Counts iterations over a nanosecond duration with minimal overhead, but as
     a consequence, the likelihood of results being skewed by GC. ]
@@ -106,6 +106,8 @@ class Poller::Raw does Poller {
           nqp::decont($n))
     }
 }
+#=[ With enough time and tinkering, this is capable of producing a more
+    idealistic iteration count when uninterrupted. ]
 
 #|[ Sleeps a number of seconds between iterations. ]
 class Throttler does Iterator {
