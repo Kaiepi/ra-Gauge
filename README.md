@@ -27,6 +27,8 @@ class Gauge is Seq { ... }
 
 Any `Gauge` sequence will be lazy and non-deterministic. These evaluate side effects during a `skip` rather than a `sink`, allowing for a warmup period.
 
+The `$*GAUGE-RAW` dynamic variable toggles garbage collection before intensive iterations in general, i.e. those of `poll` currently. By default, this will be `False` on MoarVM and the JVM. If set to `True`, iterations are very likely to be skewed by any interruption due to GC, but with enough time and luck, the epitomistical result should be possible to achieve, which we can only approach otherwise.
+
 METHODS
 =======
 
@@ -43,10 +45,15 @@ poll
 ----
 
 ```raku
-method poll(::?CLASS:D: Real:D $seconds --> ::?CLASS:D)
+method poll(::?CLASS:D:
+    Real:D $seconds,
+    Gauge::Poller:_ :$poller = $*GAUGE-RAW ?? Gauge::Poller::Raw !! Gauge::Poller::Collected
+--> ::?CLASS:D)
 ```
 
 Returns a new `Gauge` sequence that produces an `Int:D` count of iterations of the former totalling a duration of `$seconds`. This will take longer than the given argument to complete due to the overhead of iteration.
+
+Due to the time-sensitive nature of polling, a custom `Gauge::Poller` with inlined setup or cleanup in `pull-one` may be provided.
 
 throttle
 --------

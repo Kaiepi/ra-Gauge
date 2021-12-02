@@ -1,6 +1,7 @@
 use v6;
 use Test;
 
-plan 1;
+plan 2;
 
 use-ok 'Gauge', 'can use Gauge';
+ok PROCESS::<$GAUGE-RAW>:exists, 'the $*GAUGE-RAW superglobal exists';
