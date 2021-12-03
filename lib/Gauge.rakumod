@@ -140,7 +140,10 @@ method CALL-ME(::?CLASS:_: Block:D $block --> ::?CLASS:D) {
 
 #|[ Counts iterations of the gauged block over a number of seconds via
     Gauge::Poller. ]
-method poll(::?CLASS:D: Real:D $seconds, Poller:_ :$by = $*GAUGE-RAW ?? Poller::Raw !! Poller::Collected --> ::?CLASS:D) {
+method poll(::?CLASS:D:
+    Real:D $seconds,
+    Poller:_ :$by = $*GAUGE-RAW ?? Poller::Raw !! Poller::Collected
+--> ::?CLASS:D) {
     self.new: $by.new: :$seconds, :it(self.iterator)
 }
 
