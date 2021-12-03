@@ -1,11 +1,5 @@
 use v6.d;
 die 'A VM version of v2020.04 or later is required for the nqp::time op' if $*VM.version < v2020.04;
-# If False, Gauge will perform a garbage collection before an intensive
-# iteration. This allows for more stable results, but these will approach, but
-# never quite reach the greatest of ideal results, which should be possible to
-# achieve with enough time and tinkering otherwise. This is the default on
-# backends supporting garbage collection.
-INIT PROCESS::<$GAUGE-RAW> := so $*VM.name eq <moar jvm>.none; # NOTE: No GC in the JS backend as of v2020.10.
 unit class Gauge:ver<0.0.1>:auth<github:Kaiepi>:api<0> is Seq;
 
 #|[ A lazy, non-deterministic iterator that evaluates side effects when
@@ -132,19 +126,25 @@ class Throttler does Iterator {
     }
 }
 
+#|[ If False, Gauge will perform a garbage collection before an intensive
+    iteration. This allows for more stable results, but these will approach, but
+    never quite reach the greatest of ideal results, which should be possible to
+    achieve with enough time and tinkering otherwise. This is the default on
+    backends supporting garbage collection. ]
+has Bool:D $.raw is default(so $*VM.name eq <moar jvm>.none);
+
 #|[ Produces a lazy sequence of native integer durations of calls to the given
     block via Gauge::It. ]
-method CALL-ME(::?CLASS:_: Block:D $block --> ::?CLASS:D) {
-    self.new: It.new: :$block
+method CALL-ME(::?CLASS:_: Block:D $block, *%attrinit --> ::?CLASS:D) {
+    my $self := self.new: It.new: :$block;
+    %attrinit ?? $self.clone(|%attrinit) !! $self
 }
 
 #|[ Counts iterations of the gauged block over a number of seconds via
     Gauge::Poller. ]
-method poll(::?CLASS:D:
-    Real:D $seconds,
-    Poller:_ :$by = $*GAUGE-RAW ?? Poller::Raw !! Poller::Collected
---> ::?CLASS:D) {
-    self.new: $by.new: :$seconds, :it(self.iterator)
+method poll(::?CLASS:D: Real:D $seconds --> ::?CLASS:D) {
+    my $it := $!raw ?? Poller::Raw !! Poller::Collected;
+    self.new: $it.new: :$seconds, :it(self.iterator)
 }
 
 #|[ Sleeps a number of seconds between iterations of the gauged block via

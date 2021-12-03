@@ -29,38 +29,42 @@ for such a utility.
 Any C<Gauge> sequence will be lazy and non-deterministic. These evaluate side
 effects during a C<skip> rather than a C<sink>, allowing for a warmup period.
 
-The C<$*GAUGE-RAW> dynamic variable toggles garbage collection before intensive
-iterations in general, i.e. those of C<poll> currently. By default, this will
-be C<False> on MoarVM and the JVM. If set to C<True>, iterations are very
-likely to be skewed by any interruption due to GC, but with enough time and
-luck, the greatest of ideal results should be achievable.
+=head1 ATTRIBUTES
+
+=head2 $!raw
+
+=for code
+has Bool:D $.raw is default(so $*VM.name eq <moar jvm>.none);
+
+C<$!raw> toggles garbage collection before intensive iterations in general,
+i.e. those of C<poll> currently. By default, this will be C<False> on MoarVM
+and the JVM. If set to C<True>, iterations are very likely to be skewed by any
+interruption due to GC, but with enough time and tinkering, the greatest of
+ideal results should be achievable.
 
 =head1 METHODS
 
 =head2 CALL-ME
 
 =for code :lang<raku>
-method CALL-ME(::?CLASS:_: Block:D $block --> ::?CLASS:D)
+method CALL-ME(::?CLASS:_: Block:D $block, *%attrinit --> ::?CLASS:D)
 
 Produces a new C<Gauge> sequence of native C<int> durations of a call to the
 given block. As such, the size of a duration is constrained by C<$?BITS> and is
 prone to underflows. Measurements of each duration are B<not> monotonic, thus
 leap seconds and hardware errors will skew results.
 
+If C<%attrinit> is provided, a clone will be produced with it to allow for
+attributes to be set.
+
 =head2 poll
 
 =for code :lang<raku>
-method poll(::?CLASS:D:
-    Real:D $seconds,
-    Gauge::Poller:_ :$by = $*GAUGE-RAW ?? Gauge::Poller::Raw !! Gauge::Poller::Collected
---> ::?CLASS:D)
+method poll(::?CLASS:D: Real:D $seconds --> ::?CLASS:D)
 
 Returns a new C<Gauge> sequence that produces an C<Int:D> count of iterations
 of the former totalling a duration of C<$seconds>. This will take longer than
 the given argument to complete due to the overhead of iteration.
-
-Due to the time-sensitive nature of polling, a custom C<Gauge::Poller> with
-inlined setup or cleanup in C<pull-one> may be provided via C<$by>.
 
 =head2 throttle
 
