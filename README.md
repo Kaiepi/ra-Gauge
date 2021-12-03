@@ -47,13 +47,13 @@ poll
 ```raku
 method poll(::?CLASS:D:
     Real:D $seconds,
-    Gauge::Poller:_ :$poller = $*GAUGE-RAW ?? Gauge::Poller::Raw !! Gauge::Poller::Collected
+    Gauge::Poller:_ :$by = $*GAUGE-RAW ?? Gauge::Poller::Raw !! Gauge::Poller::Collected
 --> ::?CLASS:D)
 ```
 
 Returns a new `Gauge` sequence that produces an `Int:D` count of iterations of the former totalling a duration of `$seconds`. This will take longer than the given argument to complete due to the overhead of iteration.
 
-Due to the time-sensitive nature of polling, a custom `Gauge::Poller` with inlined setup or cleanup in `pull-one` may be provided.
+Due to the time-sensitive nature of polling, a custom `Gauge::Poller` with inlined setup or cleanup in `pull-one` may be provided via `$by`.
 
 throttle
 --------
