@@ -23,9 +23,7 @@ DESCRIPTION
 class Gauge is Seq { ... }
 ```
 
-`Gauge` attempts to time iterations of a block as accurately as is doable from within the realms of Raku. While this does not make for a very sophisticated benchmark on its own by virtue of its limitations, this may provide raw input for such a utility.
-
-Any `Gauge` sequence will be lazy and non-deterministic. These evaluate side effects during a `skip` rather than a `sink`, allowing for a warmup period.
+`Gauge`, in general, wraps a lazy, non-deterministic, time-oriented iterator. At its base, it attempts to measure durations of calls to a block with as little overhead as possible in order to avoid unnecessary influence over results. This does not make for a proper benchmark on its own, but may provide raw input for such a utility.
 
 ATTRIBUTES
 ==========
@@ -33,7 +31,9 @@ ATTRIBUTES
 $!raw
 -----
 
-    has Bool:D $.raw is default(so $*VM.name eq <moar jvm>.none);
+```raku
+has Bool:D $.raw is default(so $*VM.name eq <moar jvm>.none);
+```
 
 `$!raw` toggles garbage collection before intensive iterations in general, i.e. those of `poll` currently. By default, this will be `False` on MoarVM and the JVM. If set to `True`, iterations are very likely to be skewed by any interruption due to GC, but with enough time and tinkering, the greatest of ideal results should be achievable.
 

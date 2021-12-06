@@ -21,19 +21,17 @@ use Gauge;
 =for code :lang<raku>
 class Gauge is Seq { ... }
 
-C<Gauge> attempts to time iterations of a block as accurately as is doable from
-within the realms of Raku. While this does not make for a very sophisticated
-benchmark on its own by virtue of its limitations, this may provide raw input
-for such a utility.
-
-Any C<Gauge> sequence will be lazy and non-deterministic. These evaluate side
-effects during a C<skip> rather than a C<sink>, allowing for a warmup period.
+C<Gauge>, in general, wraps a lazy, non-deterministic, time-oriented iterator.
+At its base, it attempts to measure durations of calls to a block with as
+little overhead as possible in order to avoid unnecessary influence over
+results. This does not make for a proper benchmark on its own, but may provide
+raw input for such a utility.
 
 =head1 ATTRIBUTES
 
 =head2 $!raw
 
-=for code
+=for code :lang<raku>
 has Bool:D $.raw is default(so $*VM.name eq <moar jvm>.none);
 
 C<$!raw> toggles garbage collection before intensive iterations in general,
