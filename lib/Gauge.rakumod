@@ -61,13 +61,13 @@ role Poller does Iterator {
 
     method block(::?CLASS:D: --> Block:D) { $!it.block }
 
-    method raw(::?CLASS:D: --> Bool:D) { ... }
+    method gc(::?CLASS:D: --> Bool:D) { ... }
 }
 
 #|[ Counts iterations over a nanosecond duration with garbage collection
     beforehand to give stable results. ]
 class Poller::Collected does Poller {
-    method raw(::?CLASS:_: --> False) { }
+    method gc(::?CLASS:_: --> True) { }
 
     method pull-one {
         use nqp;
@@ -87,7 +87,7 @@ class Poller::Collected does Poller {
 #|[ Counts iterations over a nanosecond duration with minimal overhead, but as
     a consequence, the likelihood of results being skewed by GC. ]
 class Poller::Raw does Poller {
-    method raw(::?CLASS:_: --> True) { }
+    method gc(::?CLASS:_: --> False) { }
 
     method pull-one {
         use nqp;
