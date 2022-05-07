@@ -8,3 +8,7 @@ v0.0.2:
 
 v0.0.3:
     - Add source URL to META6.json.
+
+v0.0.4:
+    - Rename Gauge's iterators' raw methods to gc for consistency with the $!gc
+      getter on Gauge.
