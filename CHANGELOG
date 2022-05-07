@@ -12,3 +12,6 @@ v0.0.3:
 v0.0.4:
     - Rename Gauge's iterators' raw methods to gc for consistency with the $!gc
       getter on Gauge.
+
+v0.0.5:
+    - Correct outdated comment in the README.
