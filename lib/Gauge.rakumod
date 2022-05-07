@@ -100,8 +100,6 @@ class Poller::Raw does Poller {
           $n)
     }
 }
-#=[ With enough time and tinkering, this is capable of producing a more
-    idealistic iteration count when uninterrupted. ]
 
 #|[ Sleeps a number of seconds between iterations. ]
 class Throttler does Iterator {
