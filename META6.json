@@ -13,7 +13,7 @@
   "source-url": "",
   "tags": [ "benchmark" ],
   "test-depends": [ ],
-  "version": "0.0.1",
+  "version": "0.0.2",
   "auth": "zef:Kaiepi",
   "api": "0"
 }
