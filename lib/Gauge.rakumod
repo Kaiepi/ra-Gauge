@@ -1,5 +1,5 @@
 use v6.d;
-die 'A VM version of v2020.04 or later is required for the nqp::time op' if $*VM.version < v2020.04;
+die 'A VM version of v2022.04 or later is required for uint bug fixes' if $*VM.version < v2022.04;
 unit class Gauge:ver<0.0.1>:auth<github:Kaiepi>:api<0> is Seq;
 
 #|[ A lazy, non-deterministic iterator that evaluates side effects when
@@ -30,7 +30,7 @@ class It does Iterator {
         nqp::getcodeobj($!block)
     }
 
-    method pull-one(--> int) is raw {
+    method pull-one(--> uint64) {
         # XXX: A monotonic solution via Inline::Perl5 takes too long to take
         # the time, slashing the number of iterations that can be counted. A
         # NativeCall solution is apt to have the similar problems. Using &now
@@ -39,7 +39,7 @@ class It does Iterator {
         # second or encounter any hardware errors, results will be skewed.
         use nqp;
         nqp::stmts(
-          (my int $begin = nqp::time()),
+          (my uint64 $begin = nqp::time()),
           nqp::call($!block),
           nqp::sub_i(nqp::time(), $begin))
     }
@@ -49,9 +49,9 @@ class It does Iterator {
 
 #|[ Counts iterations over a nanosecond duration. ]
 role Poller does Iterator {
-    has     $.seconds;
-    has int $!ns;
-    has     $!it;
+    has      $.seconds;
+    has uint $!ns;
+    has      $!it;
 
     submethod BUILD(::?CLASS:D: Real:D :$seconds!, Iterator:D :$it! --> Nil) {
         $!seconds := $seconds<>;
@@ -69,16 +69,16 @@ role Poller does Iterator {
 class Poller::Collected does Poller {
     method raw(::?CLASS:_: --> False) { }
 
-    method pull-one is raw {
+    method pull-one {
         use nqp;
         nqp::stmts(
-          (my int $ns = $!ns),
+          (my uint $ns = $!ns),
           (my $n = 0),
           nqp::force_gc(),
           nqp::while(
             nqp::isge_i(($ns = nqp::sub_i($ns, $!it.pull-one)), 0),
             ($n++)),
-          nqp::decont($n))
+          $n)
     }
 }
 #|[ This should approach producing the most ideal scenario for an iteration
@@ -89,15 +89,15 @@ class Poller::Collected does Poller {
 class Poller::Raw does Poller {
     method raw(::?CLASS:_: --> True) { }
 
-    method pull-one is raw {
+    method pull-one {
         use nqp;
         nqp::stmts(
-          (my int $ns = $!ns),
+          (my uint $ns = $!ns),
           (my $n = 0),
           nqp::while(
             nqp::isge_i(($ns = nqp::sub_i($ns, $!it.pull-one)), 0),
             ($n++)),
-          nqp::decont($n))
+          $n)
     }
 }
 #=[ With enough time and tinkering, this is capable of producing a more
@@ -116,7 +116,7 @@ class Throttler does Iterator {
 
     method block(::?CLASS:D: --> Block:D) { $!it.block }
 
-    method pull-one is raw {
+    method pull-one {
         use nqp;
         nqp::stmts(
           nqp::if(
@@ -126,12 +126,10 @@ class Throttler does Iterator {
     }
 }
 
-#|[ If False, Gauge will perform a garbage collection before an intensive
-    iteration. This allows for more stable results, but these will approach, but
-    never quite reach the greatest of ideal results, which should be possible to
-    achieve with enough time and tinkering otherwise. This is the default on
-    backends supporting garbage collection. ]
-has Bool:D $.raw is default(so $*VM.name eq <moar jvm>.none);
+#|[ If True, Gauge will perform a garbage collection before an intensive
+    iteration. This allows for more stable results, thus is, by default, True
+    on backends supporting garbage collection. ]
+has Bool:D $.gc is default(so $*VM.name eq <moar jvm>.any);
 
 #|[ Produces a lazy sequence of native integer durations of calls to the given
     block via Gauge::It. ]
@@ -143,7 +141,7 @@ method CALL-ME(::?CLASS:_: Block:D $block, *%attrinit --> ::?CLASS:D) {
 #|[ Counts iterations of the gauged block over a number of seconds via
     Gauge::Poller. ]
 method poll(::?CLASS:D: Real:D $seconds --> ::?CLASS:D) {
-    my $it := $!raw ?? Poller::Raw !! Poller::Collected;
+    my $it := $!gc ?? Poller::Collected !! Poller::Raw;
     self.new: $it.new: :$seconds, :it(self.iterator)
 }
 

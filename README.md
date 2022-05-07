@@ -11,9 +11,9 @@ SYNOPSIS
 ```raku
 use v6.d;
 use Gauge;
-# How fast can 1..100 be sunk? Take an estimate of how many iterations can be
-# completed in 1 second every 20 seconds:
-.say for Gauge(-> --> Nil { sink 1..100 }).poll(1).throttle(19);
+# How fast can (1..10) be generated? Take an estimate of how many iterations
+# can be sunk in 1 second every 20 seconds:
+.say for Gauge(-> --> Nil { sink 1..10 }).poll(1).throttle(19);
 ```
 
 DESCRIPTION
@@ -28,14 +28,14 @@ class Gauge is Seq { ... }
 ATTRIBUTES
 ==========
 
-$!raw
------
+$!gc
+----
 
 ```raku
-has Bool:D $.raw is default(so $*VM.name eq <moar jvm>.none);
+has Bool:D $.gc is default(so $*VM.name eq <moar jvm>.any);
 ```
 
-`$!raw` toggles garbage collection before intensive iterations in general, i.e. those of `poll` currently. By default, this will be `False` on MoarVM and the JVM. If set to `True`, iterations are very likely to be skewed by any interruption due to GC, but with enough time and tinkering, the greatest of ideal results should be achievable.
+`$!gc` toggles garbage collection before intensive iterations in general, i.e. those of `poll` currently. By default, this will be `True` on MoarVM and the JVM. If set to `False`, iterations are very likely to be skewed by any interruption due to GC (if available).
 
 METHODS
 =======
