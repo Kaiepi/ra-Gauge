@@ -10,7 +10,7 @@
     "Gauge": "lib/Gauge.rakumod"
   },
   "resources": [ ],
-  "source-url": "",
+  "source-url": "https://github.com/Kaiepi/ra-Gauge.git",
   "tags": [ "benchmark" ],
   "test-depends": [ ],
   "version": "0.0.2",
