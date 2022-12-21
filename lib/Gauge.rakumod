@@ -9,11 +9,11 @@ role Iterator does Iterator {
 
     method is-deterministic(::?CLASS:_: --> False) { }
 
-    method block(::?CLASS:D: --> Block:D) { ... }
-
     method skip-one(::?CLASS:D: --> True) { self.pull-one }
 
     method sink-all(::?CLASS:D: --> IterationEnd) { }
+
+    method block(::?CLASS:D: --> Block:D) { ... }
 }
 
 #|[ Produces a nanosecond duration of a call to a block. ]
