@@ -49,9 +49,9 @@ class It does Iterator {
 
 #|[ Counts iterations over a nanosecond duration. ]
 role Poller does Iterator {
-    has      $.seconds;
-    has uint $!ns;
-    has      $!it;
+    has $.seconds;
+    has $!ns;
+    has $!it;
 
     submethod BUILD(::?CLASS:D: Real:D :$seconds!, Iterator:D :$it! --> Nil) {
         $!seconds := $seconds<>;
@@ -72,11 +72,11 @@ class Poller::Collected does Poller {
     method pull-one {
         use nqp;
         nqp::stmts(
-          (my uint $ns = $!ns),
+          (my $ns = $!ns),
           (my $n = 0),
           nqp::force_gc(),
           nqp::while(
-            nqp::isge_i(($ns = nqp::sub_i($ns, $!it.pull-one)), 0),
+            (($ns -= $!it.pull-one) >= 0),
             ($n++)),
           $n)
     }
@@ -92,10 +92,10 @@ class Poller::Raw does Poller {
     method pull-one {
         use nqp;
         nqp::stmts(
-          (my uint $ns = $!ns),
+          (my $ns = $!ns),
           (my $n = 0),
           nqp::while(
-            nqp::isge_i(($ns = nqp::sub_i($ns, $!it.pull-one)), 0),
+            (($ns -= $!it.pull-one) >= 0),
             ($n++)),
           $n)
     }
