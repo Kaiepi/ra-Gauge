@@ -9,9 +9,9 @@ role Iterator does Iterator {
 
     method is-deterministic(::?CLASS:_: --> False) { }
 
-    method skip-one(::?CLASS:D: --> True) { self.pull-one }
+    method skip-one(::?CLASS:_: --> True) { self.pull-one }
 
-    method sink-all(::?CLASS:D: --> IterationEnd) { }
+    method sink-all(::?CLASS:_: --> IterationEnd) { }
 
     method block(::?CLASS:D: --> Block:D) { ... }
 }
@@ -30,7 +30,7 @@ class It does Iterator {
         nqp::getcodeobj($!block)
     }
 
-    method pull-one(--> uint64) {
+    method pull-one(::?CLASS:_: --> uint64) {
         # XXX: A monotonic solution via Inline::Perl5 takes too long to take
         # the time, slashing the number of iterations that can be counted. A
         # NativeCall solution is apt to have the similar problems. Using &now
@@ -69,7 +69,7 @@ role Poller does Iterator {
 class Poller::Raw does Poller {
     method gc(::?CLASS:_: --> False) { }
 
-    method pull-one {
+    method pull-one(::?CLASS:_:) {
         use nqp;
         nqp::stmts(
           (my $ns = $!ns),
@@ -86,7 +86,7 @@ class Poller::Raw does Poller {
 class Poller::Collected does Poller {
     method gc(::?CLASS:_: --> True) { }
 
-    method pull-one {
+    method pull-one(::?CLASS:_:) {
         use nqp;
         nqp::stmts(
           (my $ns = $!ns),
@@ -114,7 +114,7 @@ class Throttler does Iterator {
 
     method block(::?CLASS:D: --> Block:D) { $!it.block }
 
-    method pull-one {
+    method pull-one(::?CLASS:_:) {
         use nqp;
         nqp::stmts(
           nqp::if(
