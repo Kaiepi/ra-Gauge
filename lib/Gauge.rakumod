@@ -64,6 +64,21 @@ role Poller does Iterator {
     method gc(::?CLASS:D: --> Bool:D) { ... }
 }
 
+#|[ Counts iterations over a nanosecond duration with minimal overhead, but as
+    a consequence, the likelihood of results being skewed by GC. ]
+class Poller::Raw does Poller {
+    method gc(::?CLASS:_: --> False) { }
+
+    method pull-one {
+        use nqp;
+        nqp::stmts(
+          (my $ns is default(0)),
+          (my $n is default(0)),
+          nqp::while((($ns += $!it.pull-one) < $!ns), ($n++)),
+          $n)
+    }
+}
+
 #|[ Counts iterations over a nanosecond duration with garbage collection
     beforehand to give stable results. ]
 class Poller::Collected does Poller {
@@ -81,21 +96,6 @@ class Poller::Collected does Poller {
 }
 #|[ This should approach producing the most ideal scenario for an iteration
     with regards to memory, but not quite manage to pull it off. ]
-
-#|[ Counts iterations over a nanosecond duration with minimal overhead, but as
-    a consequence, the likelihood of results being skewed by GC. ]
-class Poller::Raw does Poller {
-    method gc(::?CLASS:_: --> False) { }
-
-    method pull-one {
-        use nqp;
-        nqp::stmts(
-          (my $ns is default(0)),
-          (my $n is default(0)),
-          nqp::while((($ns += $!it.pull-one) < $!ns), ($n++)),
-          $n)
-    }
-}
 
 #|[ Sleeps a number of seconds between iterations. ]
 class Throttler does Iterator {
