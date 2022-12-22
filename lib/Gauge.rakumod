@@ -14,6 +14,13 @@ role Iterator does Iterator {
     method sink-all(::?CLASS:_: --> IterationEnd) { }
 
     method block(::?CLASS:D: --> Block:D) { ... }
+
+    method demultiplex(::?CLASS:D: uint $signals --> Seq:D) {
+        gather if $signals {
+            take self;
+            (take self.clone) xx $signals.pred
+        }
+    }
 }
 
 #|[ Produces a nanosecond duration of a call to a block. ]
@@ -97,6 +104,15 @@ class Poller::Collected does Poller {
             ($n++)),
           $n)
     }
+
+    method demultiplex(::?CLASS:D: uint $signals --> Seq:D) {
+        gather if $signals {
+            # When demuxing to threaded benchmarks, only one thread should be
+            # performing any preliminary global lock through GC, if at all...
+            take self;
+            (take Poller::Raw.new: :$!seconds, :it($!it.clone)) xx $signals.pred
+        }
+    }
 }
 #|[ This should approach producing the most ideal scenario for an iteration
     with regards to memory, but not quite manage to pull it off. ]
@@ -124,6 +140,79 @@ class Throttler does Iterator {
     }
 }
 
+#|[ Jails a gauged iteration in its own thread. ]
+class Signal is Thread {
+    my $band is default(0);
+    my &code := -> { send $*THREAD };
+
+    has $.band;
+    has $.values;
+    has $!taking is default(True);
+    has $!result;
+    has $!wanted;
+    has $!marked;
+
+    submethod BUILD(::?CLASS:D: :$band!, :$values! --> Nil) {
+        $!band   := $band<>;
+        $!values := $values<>;
+        $!wanted := Semaphore.new: 1;
+        $!marked := Semaphore.new: 0;
+    }
+
+    #|[ Prepares to calculate results from a gauged iteration. ]
+    method new(::?CLASS:_: Iterator:D $values) {
+        callwith :band(cas $band, *.succ), :$values, :&code, :name('gauge ' ~ ⚛$band), :app_lifetime
+    }
+
+    my method send(::?CLASS:_: --> Nil) {
+        use nqp;
+        nqp::while(
+          nqp::atomicload($!taking),
+          nqp::stmts(
+            nqp::semacquire($!wanted),
+            nqp::atomicstore($!result,$!values.pull-one),
+            nqp::semrelease($!marked)));
+    }
+
+    #|[ Yields a result and prompts the next iteration in the background. ]
+    proto method receive(::?CLASS:_:) {*}
+    multi method receive(::?CLASS:U: --> IterationEnd) { }
+    multi method receive(::?CLASS:D:) {
+        use nqp;
+        nqp::semacquire($!marked);
+        my $result := nqp::atomicload($!result);
+        nqp::semrelease($!wanted);
+        $result
+    }
+}
+
+#|[ Gathers results from multiple threads making calculations simultaneously. ]
+class Multiplexer does Iterator {
+    has @!signals;
+    has uint $!sliced;
+    has uint $!writer;
+    has uint $!reader;
+
+    submethod BUILD(::?CLASS:D: uint :$signals!, Iterator:D :$it! --> Nil) {
+        @!signals := list Signal unless $signals;
+        @!signals := $it.demultiplex($signals).map({ Signal.new($^it).run }).cache unless @!signals;
+        $!sliced   = $signals && $signals.pred;
+    }
+
+    method pull-one(::?CLASS:_:) {
+        use nqp;
+        nqp::stmts(
+          (my $result := @!signals.AT-POS(($!reader .= pred) min= $!writer).receive),
+          ($!writer++ unless $!reader || $!writer >= $!sliced),
+          $result)
+    }
+
+    method block(::?CLASS:D: --> Block:D) {
+        @!signals[$!reader].values.block
+    }
+}
+#=[ Despite threads being instantiated in sequence, they are walked backwards. ]
+
 #|[ If True, Gauge will perform a garbage collection before an intensive
     iteration. This allows for more stable results, thus is, by default, True
     on backends supporting garbage collection. ]
@@ -147,4 +236,10 @@ method poll(::?CLASS:D: Real:D $seconds --> ::?CLASS:D) {
     Gauge::Throttler. ]
 method throttle(::?CLASS:D: Real:D $seconds --> ::?CLASS:D) {
     self.new: Throttler.new: :$seconds, :it(self.iterator)
+}
+
+#|[ Demultiplexes this iterator across a number of threads, collecting results
+    via Gauge::Multiplexer. ]
+method demultiplex(::?CLASS:D: UInt:D $signals --> ::?CLASS:D) {
+    self.new: Multiplexer.new: :$signals, :it(self.iterator)
 }

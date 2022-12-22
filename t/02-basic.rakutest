@@ -2,7 +2,9 @@ use v6.d;
 use Test;
 use Gauge;
 
-plan 17;
+my constant $MULTITHREADED = $*KERNEL.cpu-cores > 3;
+
+plan 20;
 
 {
     my $calls = 0;
@@ -46,4 +48,24 @@ for Gauge::Poller::Raw, Gauge::Poller::Collected -> \Poller {
     Gauge(-> { <0> <=> <0> }).throttle(1).skip(2);
     my $end := now;
     cmp-ok $end - $begin, &[>=], 1, 'skipping gauged iterations produces their side effects anyway';
+}
+
+{
+    lives-ok {
+        cmp-ok Gauge(-> --> Nil { }).demultiplex(0).iterator.pull-one, &[=:=], IterationEnd,
+          'multiplexing gauge across zero threads survives an iteration...'
+    }, '...which makes a noop';
+}
+
+if $MULTITHREADED {
+    my $id = Channel.new;
+    my $it = Gauge({ $id.send: $*THREAD.id }).demultiplex(3).iterator;
+    $it.pull-one xx (1 + 2 + 1); # walks backwards on each increment
+    $id.close;
+    my @id := @$id;
+    ok @id.unique.reduce(* before *),
+      'Gauge::Multiplexer walks its threads incrementally';
+}
+else {
+    skip 'Gauge::Multiplexer needs threads!';
 }
