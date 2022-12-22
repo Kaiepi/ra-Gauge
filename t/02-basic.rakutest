@@ -17,7 +17,7 @@ plan 17;
 };
 
 for Gauge::Poller::Raw, Gauge::Poller::Collected -> \Poller {
-    my $it = Poller.new: :1seconds, it => Gauge::It.new: :block(-> --> True { sleep 0.5 });
+    my $it = Poller.new: :1seconds, it => Gauge::It.new: :block({ sleep 0.5 });
     ok $it ~~ Gauge::Iterator, Poller.^name ~ ' is a type of Gauge::Iterator...';
     isa-ok $it.pull-one, Int, '...which produces an integer count...';
     my $begin := now;
@@ -28,7 +28,7 @@ for Gauge::Poller::Raw, Gauge::Poller::Collected -> \Poller {
 }
 
 {
-    my $it = Gauge::Throttler.new: :1seconds, it => Gauge::It.new: :block(-> --> True { (+*...*) });
+    my $it = Gauge::Throttler.new: :1seconds, it => Gauge::It.new: :block({ (+*...*) });
     ok $it ~~ Gauge::Iterator, 'Gauge::Throttler is a type of Gauge::Iterator...';
     my @stamps[2];
     my $begin := now;
