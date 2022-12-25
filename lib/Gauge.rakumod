@@ -173,7 +173,11 @@ class Signal is Thread {
     }
 
     #|[ Prepares to calculate results from a gauged iteration. ]
-    method new(::?CLASS:_: Iterator:D $values) {
+    proto method new(::?CLASS:_: $) {*}
+    multi method new(::?CLASS:_: Gauge:D $gauge) {
+        samewith $gauge.iterator
+    }
+    multi method new(::?CLASS:_: Iterator:D $values) {
         callwith :packet(cas $band, *.permit), :$values, :&code, :name('gauge ' ~ ⚛$band), :app_lifetime
     }
 
