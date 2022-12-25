@@ -285,3 +285,19 @@ only infix:<W>(**@gauged) is assoc<list> is looser(&infix:<...>) is export {
     $?CLASS.multiplex: @gauged
 }
 #=[ This is designed to be depended on as a reduction. ]
+
+#|[ Gauges' view operator. ]
+proto infix:<V>(UInt:D, |) is assoc<left> is looser(&infix:<W>) is export {*}
+#=[ If multiplexed, results are keyed by the ultimate band in a hash of arrays;
+    in a single-threaded context, results are just gathered in just one array. ]
+multi infix:<V>($counts, ::?CLASS:D $gauged) {
+    samewith $counts, $gauged.iterator
+}
+multi infix:<V>($counts, Multiplexer:D $it) {
+    $it.push-exactly: my %results, $counts;
+    %results = %results.kv.map({ $^band => [ $^list<> ] })
+}
+multi infix:<V>($counts, Iterator:D $it) {
+    $it.push-exactly: my @results, $counts;
+    @results
+}

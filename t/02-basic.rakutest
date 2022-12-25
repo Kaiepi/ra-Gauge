@@ -2,7 +2,7 @@ use v6.d;
 use Test;
 use Gauge;
 
-plan 21;
+plan 25;
 
 {
     my $calls = 0;
@@ -55,28 +55,33 @@ for Gauge::Poller::Raw, Gauge::Poller::Collected -> \Poller {
     }, '...which makes a noop';
 }
 
-if $*KERNEL.cpu-cores > 3 {
-    my $id = Channel.new;
-    my $it = Gauge({ $id.send: $*THREAD.id }).demultiplex(3).iterator;
-    $it.pull-one xx (1 + 2 + 1); # walks backwards on each increment
-    $id.close;
-    my @id := @$id;
-    ok @id && @id.unique.reduce(* before *),
-      'Gauge::Multiplexer walks its demultiplexed threads incrementally';
+lives-ok {
+    ok (my @ := 1 + 1 - 1 V Gauge(-> --> Nil { })),
+      'an individual view is existent...';
+}, '...and is a positional';
+if $*KERNEL.cpu-cores > 1 {
+    lives-ok {
+        ok (my % := 1 V Gauge(-> --> Nil { }).demultiplex(1)),
+          'multiplexed views are existent...';
+    }, '...and are associative';
 }
 else {
     skip 'Gauge::Multiplexer needs threads!';
 }
 
-if $*KERNEL.cpu-cores > 2 {
-    my $id = Channel.new;
-    my $it = ([W] Gauge({ $id.send: $*THREAD.id }), Gauge({ $id.send: $*THREAD.id })).iterator;
-    $it.pull-one xx (1 + 2 + 1);
-    $id.close;
-    my @id := @$id;
-    ok @id && @id.unique.reduce(* before *),
-      'Gauge::Multiplexer walks its multiplexed threads incrementally';
+if $*KERNEL.cpu-cores > 3 {
+    my $it := Gauge(-> --> Nil { });
+
+    my %it := (1 + 2 + 3 + 1) V[W] $it.clone, $it.clone, $it.clone;
+    my @it := %it.keys.cache;
+    cmp-ok @it.sort, &[eqv], (@it.min...@it.min + 2),
+      'Gauge::Multiplexer can increment multiplexed threads...';
+
+    %it := (1 + 2 + 1) V $it.clone.demultiplex: 3;
+    @it := %it.keys.cache;
+    cmp-ok @it.sort, &[eqv], (@it.min...@it.min + 2),
+      '...and demultiplexed threads alike while ordering bands';
 }
 else {
-    skip 'Gauge::Multiplexer needs threads!';
+    skip 'Gauge::Multiplexer needs threads!', 2;
 }
