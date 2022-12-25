@@ -4,7 +4,7 @@ use Gauge;
 
 my constant $MULTITHREADED = $*KERNEL.cpu-cores > 3;
 
-plan 20;
+plan 21;
 
 {
     my $calls = 0;
@@ -63,9 +63,17 @@ if $MULTITHREADED {
     $it.pull-one xx (1 + 2 + 1); # walks backwards on each increment
     $id.close;
     my @id := @$id;
-    ok @id.unique.reduce(* before *),
-      'Gauge::Multiplexer walks its threads incrementally';
+    ok @id && @id.unique.reduce(* before *),
+      'Gauge::Multiplexer walks its demultiplexed threads incrementally';
+
+    $id = Channel.new;
+    $it = Gauge.multiplex([ Gauge({ $id.send: $*THREAD.id }), Gauge({ $id.send: $*THREAD.id }) ]).iterator;
+    $it.pull-one xx (1 + 2 + 1);
+    $id.close;
+    @id := @$id;
+    ok @id && @id.unique.reduce(* before *),
+      'Gauge::Multiplexer walks its multiplexed threads incrementally';
 }
 else {
-    skip 'Gauge::Multiplexer needs threads!';
+    skip 'Gauge::Multiplexer needs threads!', 2;
 }

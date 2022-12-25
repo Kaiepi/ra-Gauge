@@ -222,10 +222,15 @@ class Multiplexer does Iterator {
     has uint $!writer;
     has uint $!reader;
 
-    submethod BUILD(::?CLASS:D: uint :$signals!, Iterator:D :$it! --> Nil) {
+    proto submethod BUILD(::?CLASS:D: --> Nil) {*}
+    multi submethod BUILD(::?CLASS:_: uint :$signals!, Iterator:D :$it! --> Nil) {
         @!signals := list Signal unless $signals;
         @!signals := Signal.form: $it.demultiplex: $signals unless @!signals;
         $!sliced   = $signals && $signals.pred;
+    }
+    multi submethod BUILD(::?CLASS:_: :@gauged! --> Nil) {
+        @!signals := Signal.form: @gauged;
+        $!sliced   = @gauged.end if @gauged;
     }
 
     method pull-one(::?CLASS:_:) {
@@ -267,4 +272,10 @@ method throttle(::?CLASS:D: Real:D $seconds --> ::?CLASS:D) {
     via Gauge::Multiplexer. ]
 method demultiplex(::?CLASS:D: UInt:D $signals --> ::?CLASS:D) {
     self.new: Multiplexer.new: :$signals, :it(self.iterator)
+}
+
+#|[ Multiplexes any nunber of gauged iterations into one, collecting results
+    via Gauge::Multiplexer. ]
+method multiplex(::?CLASS:_: @gauged --> ::?CLASS:D) {
+    self.new: Multiplexer.new: :@gauged
 }
