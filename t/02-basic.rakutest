@@ -2,8 +2,6 @@ use v6.d;
 use Test;
 use Gauge;
 
-my constant $MULTITHREADED = $*KERNEL.cpu-cores > 3;
-
 plan 21;
 
 {
@@ -57,7 +55,7 @@ for Gauge::Poller::Raw, Gauge::Poller::Collected -> \Poller {
     }, '...which makes a noop';
 }
 
-if $MULTITHREADED {
+if $*KERNEL.cpu-cores > 3 {
     my $id = Channel.new;
     my $it = Gauge({ $id.send: $*THREAD.id }).demultiplex(3).iterator;
     $it.pull-one xx (1 + 2 + 1); # walks backwards on each increment
@@ -65,15 +63,20 @@ if $MULTITHREADED {
     my @id := @$id;
     ok @id && @id.unique.reduce(* before *),
       'Gauge::Multiplexer walks its demultiplexed threads incrementally';
+}
+else {
+    skip 'Gauge::Multiplexer needs threads!';
+}
 
-    $id = Channel.new;
-    $it = Gauge.multiplex([ Gauge({ $id.send: $*THREAD.id }), Gauge({ $id.send: $*THREAD.id }) ]).iterator;
+if $*KERNEL.cpu-cores > 2 {
+    my $id = Channel.new;
+    my $it = ([W] Gauge({ $id.send: $*THREAD.id }), Gauge({ $id.send: $*THREAD.id })).iterator;
     $it.pull-one xx (1 + 2 + 1);
     $id.close;
-    @id := @$id;
+    my @id := @$id;
     ok @id && @id.unique.reduce(* before *),
       'Gauge::Multiplexer walks its multiplexed threads incrementally';
 }
 else {
-    skip 'Gauge::Multiplexer needs threads!', 2;
+    skip 'Gauge::Multiplexer needs threads!';
 }

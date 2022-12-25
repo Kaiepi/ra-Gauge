@@ -279,3 +279,9 @@ method demultiplex(::?CLASS:D: UInt:D $signals --> ::?CLASS:D) {
 method multiplex(::?CLASS:_: @gauged --> ::?CLASS:D) {
     self.new: Multiplexer.new: :@gauged
 }
+
+#|[ Gauge's multiplexing operator. ]
+only infix:<W>(**@gauged) is assoc<list> is looser(&infix:<...>) is export {
+    $?CLASS.multiplex: @gauged
+}
+#=[ This is designed to be depended on as a reduction. ]
