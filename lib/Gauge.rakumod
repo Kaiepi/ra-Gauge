@@ -158,6 +158,11 @@ class Signal is Thread {
         callwith :band(cas $band, *.succ), :$values, :&code, :name('gauge ' ~ ⚛$band), :app_lifetime
     }
 
+    #|[ Encodes a sequence of iterations to sample. ]
+    method form(::?CLASS:_: Iterable:D $sources) {
+        $sources.map({ self.new: $^it }).eager.map(*.run).cache
+    }
+
     my method send(::?CLASS:_: --> Nil) {
         use nqp;
         nqp::while(
@@ -189,7 +194,7 @@ class Multiplexer does Iterator {
 
     submethod BUILD(::?CLASS:D: uint :$signals!, Iterator:D :$it! --> Nil) {
         @!signals := list Signal unless $signals;
-        @!signals := $it.demultiplex($signals).map({ Signal.new($^it).run }).cache unless @!signals;
+        @!signals := Signal.form: $it.demultiplex: $signals unless @!signals;
         $!sliced   = $signals && $signals.pred;
     }
 
