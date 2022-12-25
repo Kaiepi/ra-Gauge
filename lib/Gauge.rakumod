@@ -149,13 +149,20 @@ class Signal is Thread {
     submethod BUILD(::?CLASS:D: :$band!, :$values! --> Nil) {
         $!band   := $band<>;
         $!values := $values<>;
-        $!wanted := Semaphore.new: 1;
+        $!wanted := Semaphore.new: 0;
         $!marked := Semaphore.new: 0;
     }
 
     #|[ Prepares to calculate results from a gauged iteration. ]
     method new(::?CLASS:_: Iterator:D $values) {
         callwith :band(cas $band, *.succ), :$values, :&code, :name('gauge ' ~ ⚛$band), :app_lifetime
+    }
+
+    #|[ Begins calculation of results from a gauged iteration. ]
+    method run(::?CLASS:D:) {
+        use nqp;
+        nqp::semrelease($!wanted);
+        callsame
     }
 
     #|[ Encodes a sequence of iterations to sample. ]
