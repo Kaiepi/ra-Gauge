@@ -134,20 +134,39 @@ class Throttler does Iterator {
     }
 }
 
+#|[ A result emitted by Gauge::Signal, paired to and keyed by its band. ]
+class Packet is Pair {
+    #|[ Produces a permit for a new band of packets. ]
+    method permit(::?CLASS:D: --> ::?CLASS:D) {
+        self.new: :key(self.key.succ), :value(self.value)
+    }
+    #|[ This depends on there being a cache; it plays nice with &cas. ]
+
+    #|[ Follows through on a permit by filling a copy's value with a result. ]
+    proto method sign(::?CLASS:D: $ --> ::?CLASS:D) {*}
+    #=[ This should not nest; calculate offsets like you might a Test &plan. ]
+    multi method sign(::?CLASS:_: $buffer) {
+        self.new: :key(self.key), :value($buffer)
+    }
+    multi method sign(::?CLASS:_: ::?CLASS:D $packet) {
+        $packet
+    }
+}
+
 #|[ Jails a gauged iteration in its own thread. ]
 class Signal is Thread {
-    my $band is default(0);
+    my $band is default(Packet.new: 0, 0);
     my &code := -> { send $*THREAD };
 
-    has $.band;
+    has $.packet;
     has $!values;
     has $!taking is default(True);
     has $!result;
     has $!wanted;
     has $!marked;
 
-    submethod BUILD(::?CLASS:D: :$band!, :$values! --> Nil) {
-        $!band   := $band<>;
+    submethod BUILD(::?CLASS:D: :$packet!, :$values! --> Nil) {
+        $!packet := $packet<>;
         $!values := $values<>;
         $!wanted := Semaphore.new: 0;
         $!marked := Semaphore.new: 0;
@@ -155,7 +174,7 @@ class Signal is Thread {
 
     #|[ Prepares to calculate results from a gauged iteration. ]
     method new(::?CLASS:_: Iterator:D $values) {
-        callwith :band(cas $band, *.succ), :$values, :&code, :name('gauge ' ~ ⚛$band), :app_lifetime
+        callwith :packet(cas $band, *.permit), :$values, :&code, :name('gauge ' ~ ⚛$band), :app_lifetime
     }
 
     #|[ Begins calculation of results from a gauged iteration. ]
@@ -188,7 +207,7 @@ class Signal is Thread {
         nqp::semacquire($!marked);
         my $result := nqp::atomicload($!result);
         nqp::semrelease($!wanted);
-        $result
+        $!packet.sign: $result
     }
 }
 
