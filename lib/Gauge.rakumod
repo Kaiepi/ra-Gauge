@@ -13,8 +13,6 @@ role Iterator does Iterator {
 
     method sink-all(::?CLASS:_: --> IterationEnd) { }
 
-    method block(::?CLASS:D: --> Block:D) { ... }
-
     method demultiplex(::?CLASS:D: uint $signals --> Seq:D) {
         gather if $signals {
             take self;
@@ -65,8 +63,6 @@ role Poller does Iterator {
         $!ns       = $seconds * 1_000_000_000 +^ 0;
         $!it      := $it<>;
     }
-
-    method block(::?CLASS:D: --> Block:D) { $!it.block }
 
     method gc(::?CLASS:D: --> Bool:D) { ... }
 }
@@ -128,8 +124,6 @@ class Throttler does Iterator {
         $!sleeps  = False;
     }
 
-    method block(::?CLASS:D: --> Block:D) { $!it.block }
-
     method pull-one(::?CLASS:_:) {
         use nqp;
         nqp::stmts(
@@ -146,7 +140,7 @@ class Signal is Thread {
     my &code := -> { send $*THREAD };
 
     has $.band;
-    has $.values;
+    has $!values;
     has $!taking is default(True);
     has $!result;
     has $!wanted;
@@ -205,10 +199,6 @@ class Multiplexer does Iterator {
           (my $result := @!signals.AT-POS(($!reader .= pred) min= $!writer).receive),
           ($!writer++ unless $!reader || $!writer >= $!sliced),
           $result)
-    }
-
-    method block(::?CLASS:D: --> Block:D) {
-        @!signals[$!reader].values.block
     }
 }
 #=[ Despite threads being instantiated in sequence, they are walked backwards. ]
