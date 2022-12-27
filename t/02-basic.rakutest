@@ -72,12 +72,12 @@ else {
 if $*KERNEL.cpu-cores > 3 {
     my $it := Gauge(-> --> Nil { });
 
-    my %it := (1 + 2 + 3 + 1) view [switch] $it.clone, $it.clone, $it.clone;
+    my %it := 4 view 2 boot [switch] $it.clone, $it.clone, $it.clone;
     my @it := %it.keys.cache;
     cmp-ok @it.sort, &[eqv], (@it.min...@it.min + 2),
       'Gauge::Multiplexer can increment multiplexed threads...';
 
-    %it := (1 + 2 + 1) view $it.clone.demultiplex: 3;
+    %it := 3 view 1 boot $it.clone.demultiplex: 3;
     @it := %it.keys.cache;
     cmp-ok @it.sort, &[eqv], (@it.min...@it.min + 2),
       '...and demultiplexed threads alike while ordering bands';

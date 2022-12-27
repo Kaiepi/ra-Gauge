@@ -19,6 +19,10 @@ role Iterator does Iterator {
             (take self.clone) xx $signals.pred
         }
     }
+
+    method skip-cyclic(::?CLASS:D: int $n --> True) {
+        $n and self.skip-at-least: $n
+    }
 }
 
 #|[ Produces a nanosecond duration of a call to a block. ]
@@ -240,6 +244,11 @@ class Multiplexer does Iterator {
           ($!writer++ unless $!reader || $!writer >= $!sliced),
           $result)
     }
+
+    method skip-cyclic(::?CLASS:D: int $n is copy = $!sliced --> True) {
+        use nqp;
+        nqp::while($n,((self.skip-at-least: $!writer.succ) && $n--));
+    }
 }
 #=[ Despite threads being instantiated in sequence, they are walked backwards. ]
 
@@ -286,8 +295,19 @@ only infix:<switch>(**@gauged) is assoc<list> is looser(&infix:<...>) is export 
 }
 #=[ This is designed to be depended on as a reduction. ]
 
-#|[ Gauges' view operator. ]
-proto infix:<view>(UInt:D, |) is assoc<left> is looser(&infix:<switch>) is export {*}
+#|[ Gauge's warmup operator. ]
+proto infix:<boot>(| --> ::?CLASS:D) is assoc<right> is looser(&infix:<switch>) is export {*}
+#=[ A cycle is one iteration of all available iterators. ]
+multi infix:<boot>($cycles, ::?CLASS:D $gauged) {
+    $gauged.new: samewith $cycles, $gauged.iterator
+}
+multi infix:<boot>(Int:D $cycles, Iterator:D $it) {
+    $it.skip-cyclic: $cycles;
+    $it
+}
+
+#|[ Gauge's view operator. ]
+proto infix:<view>(UInt:D, |) is assoc<right> is looser(&infix:<switch>) is export {*}
 #=[ If multiplexed, results are keyed by the ultimate band in a hash of arrays;
     in a single-threaded context, results are just gathered in just one array. ]
 multi infix:<view>($counts, ::?CLASS:D $gauged) {
