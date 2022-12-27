@@ -23,6 +23,10 @@ role Iterator does Iterator {
     method skip-cyclic(::?CLASS:D: int $n --> True) {
         $n and self.skip-at-least: $n
     }
+
+    method push-cyclic(::?CLASS:D: Mu $target is raw, int $n --> True) {
+        $n and self.push-exactly: $target, $n
+    }
 }
 
 #|[ Produces a nanosecond duration of a call to a block. ]
@@ -249,6 +253,11 @@ class Multiplexer does Iterator {
         use nqp;
         nqp::while($n,((self.skip-at-least: $!writer.succ) && $n--));
     }
+
+    method push-cyclic(::?CLASS:D: Mu $target is raw, UInt:D $n is copy --> True) {
+        use nqp;
+        nqp::while($n,nqp::stmts((self.push-exactly: $target, $!writer.succ),($n--)));
+    }
 }
 #=[ Despite threads being instantiated in sequence, they are walked backwards. ]
 
@@ -307,17 +316,18 @@ multi infix:<boot>(Int:D $cycles, Iterator:D $it) {
 }
 
 #|[ Gauge's view operator. ]
-proto infix:<view>(UInt:D, |) is assoc<right> is looser(&infix:<switch>) is export {*}
+proto infix:<view>(|) is assoc<right> is looser(&infix:<switch>) is export {*}
 #=[ If multiplexed, results are keyed by the ultimate band in a hash of arrays;
-    in a single-threaded context, results are just gathered in just one array. ]
-multi infix:<view>($counts, ::?CLASS:D $gauged) {
-    samewith $counts, $gauged.iterator
+    in a single-threaded context, results are just gathered in just one array.
+    As with &infix:<boot>, this operates in terms of iteration cycles. ]
+multi infix:<view>(Int:D $cycles, ::?CLASS:D $gauged) {
+    samewith $cycles, $gauged.iterator
 }
-multi infix:<view>($counts, Multiplexer:D $it) {
-    $it.push-exactly: my %results, $counts;
+multi infix:<view>(Int:D $cycles, Multiplexer:D $it) {
+    $it.push-cyclic: my %results, $cycles;
     %results = %results.kv.map({ $^band => [ $^list<> ] })
 }
-multi infix:<view>($counts, Iterator:D $it) {
-    $it.push-exactly: my @results, $counts;
+multi infix:<view>(Int:D $cycles, Iterator:D $it) {
+    $it.push-cyclic: my @results, $cycles;
     @results
 }
