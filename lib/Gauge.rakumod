@@ -2,9 +2,47 @@ use v6.d;
 die 'A VM version of v2022.04 or later is required for uint bug fixes' if $*VM.version < v2022.04;
 unit class Gauge:ver<0.0.5>:auth<zef:Kaiepi>:api<0> is Seq;
 
+#|[ Tracks how many iterations make a cycle with which to boot or view. ]
+role Curve {
+    method cycle-only(::?CLASS:D: --> int) { ... }
+
+    method skip-cyclic(::?CLASS:D: int --> True) { ... }
+
+    method push-cyclic(::?CLASS:D: Mu, int --> True) { ... }
+}
+
+#|[ The heart of a cyclic iteration. ]
+role Helix[Iterator ::T = Iterator] does T does Curve {
+    method cycle-only(::?CLASS:D: --> 1) { }
+
+    method skip-cyclic(::?CLASS:D: int $n --> True) {
+        $n and self.skip-at-least: $n;
+    }
+
+    method push-cyclic(::?CLASS:D: Mu $target is raw, int $n --> True) {
+        $n and self.push-exactly: $target, $n;
+    }
+}
+#=[ This carries a static cycle count. ]
+
+#|[ A curve layered over another in some way. ]
+role Spiral[Iterator ::T = Iterator] does T does Curve {
+    method skip-cyclic(::?CLASS:D: int $n is copy --> True) {
+        use nqp;
+        nqp::while($n,((self.skip-at-least: self.cycle-only) && $n--));
+    }
+
+    method push-cyclic(::?CLASS:D: Mu $target is raw, UInt:D $n is copy --> True) {
+        use nqp;
+        nqp::while($n,nqp::stmts((self.push-exactly: $target, self.cycle-only),($n--)));
+    }
+}
+#=[ This carreis a dynamic cycle count. Pointing to another curve is OK, but
+    calculations necessary to make one must be thread-safe (unlike Iterator). ]
+
 #|[ A lazy, non-deterministic iterator that evaluates side effects when
     skipping rather than sinking. ]
-role Iterator does Iterator {
+role Iterator[Curve ::T] does T {
     method is-lazy(::?CLASS:_: --> True) { }
 
     method is-deterministic(::?CLASS:_: --> False) { }
@@ -19,18 +57,10 @@ role Iterator does Iterator {
             (take self.clone) xx $signals.pred
         }
     }
-
-    method skip-cyclic(::?CLASS:D: int $n --> True) {
-        $n and self.skip-at-least: $n
-    }
-
-    method push-cyclic(::?CLASS:D: Mu $target is raw, int $n --> True) {
-        $n and self.push-exactly: $target, $n
-    }
 }
 
 #|[ Produces a nanosecond duration of a call to a block. ]
-class It does Iterator {
+class It does Iterator[Helix] {
     has $!block;
 
     submethod BUILD(::?CLASS:D: Block:D :$block! --> Nil) {
@@ -61,7 +91,7 @@ class It does Iterator {
     consequence. ]
 
 #|[ Counts iterations over a nanosecond duration. ]
-role Poller does Iterator {
+role Poller does Iterator[Spiral] {
     has $.seconds;
     has $!ns;
     has $!it;
@@ -73,6 +103,10 @@ role Poller does Iterator {
     }
 
     method gc(::?CLASS:D: --> Bool:D) { ... }
+
+    method cycle-only(::?CLASS:D: --> int) {
+        $!it.cycle-only
+    }
 }
 
 #|[ Counts iterations over a nanosecond duration with minimal overhead, but as
@@ -122,7 +156,7 @@ class Poller::Collected does Poller {
     with regards to memory, but not quite manage to pull it off. ]
 
 #|[ Sleeps a number of seconds between iterations. ]
-class Throttler does Iterator {
+class Throttler does Iterator[Spiral] {
     has num $.seconds;
     has     $!it;
     has     $!sleeps;
@@ -139,6 +173,10 @@ class Throttler does Iterator {
             nqp::cas($!sleeps, False, True),
             nqp::sleep($!seconds)),
           $!it.pull-one)
+    }
+
+    method cycle-only(::?CLASS:D: --> int) {
+        $!it.cycle-only
     }
 }
 
@@ -221,14 +259,20 @@ class Signal is Thread {
         nqp::semrelease($!wanted);
         $!packet.sign: $result
     }
+
+    #|[ The wrapped iteration's cycle count. ]
+    method cycle(::?CLASS:D: --> int) {
+        $!values.cycle-only
+    }
 }
 
 #|[ Gathers results from multiple threads making calculations simultaneously. ]
-class Multiplexer does Iterator {
+class Multiplexer does Iterator[Spiral] {
     has @!signals;
     has uint $!sliced;
     has uint $!writer;
     has uint $!reader;
+    has $!cycles is default(0); # $!writer boxed atomically
 
     proto submethod BUILD(::?CLASS:D: --> Nil) {*}
     multi submethod BUILD(::?CLASS:_: uint :$signals!, Iterator:D :$it! --> Nil) {
@@ -245,18 +289,16 @@ class Multiplexer does Iterator {
         use nqp;
         nqp::stmts(
           (my $result := @!signals.AT-POS(($!reader .= pred) min= $!writer).receive),
-          ($!writer++ unless $!reader || $!writer >= $!sliced),
+          ($!reader || nqp::isge_u($!writer,$!sliced) || nqp::atomicstore($!cycles,++$!writer)),
           $result)
     }
 
-    method skip-cyclic(::?CLASS:D: int $n is copy = $!sliced --> True) {
+    method cycle-only(::?CLASS:D: --> int) {
         use nqp;
-        nqp::while($n,((self.skip-at-least: $!writer.succ) && $n--));
-    }
-
-    method push-cyclic(::?CLASS:D: Mu $target is raw, UInt:D $n is copy --> True) {
-        use nqp;
-        nqp::while($n,nqp::stmts((self.push-exactly: $target, $!writer.succ),($n--)));
+        # This needs to be thread-safe (unlike Iterator) because counts are
+        # taken across threads. Calculation of a cycle occurs before the actual
+        # cycle itself. Signals are eager and we have seq-cst memory ordering.
+        @!signals.head(nqp::atomicload($!cycles).succ).map(*.cycle).sum
     }
 }
 #=[ Despite threads being instantiated in sequence, they are walked backwards. ]
