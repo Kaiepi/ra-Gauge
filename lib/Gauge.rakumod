@@ -308,11 +308,19 @@ class Multiplexer does Iterator[Spiral] {
     on backends supporting garbage collection. ]
 has Bool:D $.gc is default(so $*VM.name eq <moar jvm>.any);
 
+#|[ Gauges an iteration, manually copying attributes across instances. ]
+proto method new(::?CLASS:_: | --> ::?CLASS:D) {*}
+multi method new(::?CLASS:U: $it, *%attrinit) {
+    %attrinit ?? callwith($it) !! callwith($it).clone(|%attrinit)
+}
+multi method new(::?CLASS:D: $it, :$gc = $!gc, *%attrinit) {
+    callwith($it).clone(:$gc, |%attrinit)
+}
+
 #|[ Produces a lazy sequence of native integer durations of calls to the given
     block via Gauge::It. ]
 method CALL-ME(::?CLASS:_: Block:D $block, *%attrinit --> ::?CLASS:D) {
-    my $self := self.new: It.new: :$block;
-    %attrinit ?? $self.clone(|%attrinit) !! $self
+    self.new: It.new: :$block, |%attrinit
 }
 
 #|[ Counts iterations of the gauged block over a number of seconds via
