@@ -142,15 +142,6 @@ class Poller::Collected does Poller {
             ($n++)),
           $n)
     }
-
-    method demultiplex(::?CLASS:D: uint $signals --> Seq:D) {
-        gather if $signals {
-            # When demuxing to threaded benchmarks, only one thread should be
-            # performing any preliminary global lock through GC, if at all...
-            take self;
-            (take Poller::Raw.new: :$!seconds, :it($!it.clone)) xx $signals.pred
-        }
-    }
 }
 #|[ This should approach producing the most ideal scenario for an iteration
     with regards to memory, but not quite manage to pull it off. ]
