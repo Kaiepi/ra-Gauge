@@ -35,7 +35,7 @@ $!gc
 has Bool:D $.gc is default(so $*VM.name eq <moar jvm>.any);
 ```
 
-`$!gc` toggles garbage collection before intensive iterations in general, i.e. those of `poll` currently. By default, this will be `True` on MoarVM and the JVM. If set to `False`, iterations are very likely to be skewed by any interruption due to GC (if available).
+`$!gc` toggles garbage collection before intensive iterations in general, i.e. those of `poll` currently. If set to `True`, iterations are less likely to be skewed by any interruption due to GC , but only in a single-threaded context.
 
 METHODS
 =======

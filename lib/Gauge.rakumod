@@ -304,9 +304,8 @@ class Multiplexer does Iterator[Spiral] {
 #=[ Despite threads being instantiated in sequence, they are walked backwards. ]
 
 #|[ If True, Gauge will perform a garbage collection before an intensive
-    iteration. This allows for more stable results, thus is, by default, True
-    on backends supporting garbage collection. ]
-has Bool:D $.gc is default(so $*VM.name eq <moar jvm>.any);
+    iteration. This will thrash paallel results, so don't set this by default. ]
+has Bool:D $.gc is default(False);
 
 #|[ Gauges an iteration, manually copying attributes across instances. ]
 proto method new(::?CLASS:_: | --> ::?CLASS:D) {*}
