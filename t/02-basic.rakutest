@@ -17,7 +17,7 @@ plan 17;
 };
 
 for Gauge::Poller::Raw, Gauge::Poller::Collected -> \Poller {
-    my $it = Poller.new: :1seconds, it => Gauge::It.new: :block({ sleep 0.5 });
+    my $it = Poller.new: :1seconds, it => Gauge::It.new: :block({ sleep 0.5 }), :gc(Poller.gc);
     ok $it ~~ Gauge::Iterator, Poller.^name ~ ' is a type of Gauge::Iterator...';
     isa-ok $it.pull-one, Int, '...which produces an integer count...';
     my $begin := now;

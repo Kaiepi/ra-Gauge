@@ -2,6 +2,12 @@ use v6.d;
 die 'A VM version of v2022.04 or later is required for uint bug fixes' if $*VM.version < v2022.04;
 unit class Gauge:ver<0.0.5>:auth<zef:Kaiepi>:api<0> is Seq;
 
+my constant gc = so $*VM.name eq <moar jvm>.any;
+#|[ If True, Gauge will perform a garbage collection before an intensive
+    iteration. This allows for more stable results, thus is, by default, True
+    on backends supporting garbage collection. ]
+our sub gc(--> gc) { }
+
 #|[ A lazy, non-deterministic iterator that evaluates side effects when
     skipping rather than sinking. ]
 role Iterator does Iterator {
@@ -14,15 +20,19 @@ role Iterator does Iterator {
     method sink-all(::?CLASS:_: --> IterationEnd) { }
 
     method block(::?CLASS:_: --> Block:D) { ... }
+
+    method gc(::?CLASS:_: --> Bool:D) { ... }
 }
 
 #|[ Produces a nanosecond duration of a call to a block. ]
 class It does Iterator {
     has $!block;
+    has $.gc;
 
-    submethod BUILD(::?CLASS:D: Block:D :$block! --> Nil) {
+    submethod BUILD(::?CLASS:D: Block:D :$block!, Bool:D :$gc = gc --> Nil) {
         use nqp;
         $!block := nqp::getattr(nqp::decont($block), Code, '$!do');
+        $!gc    := $gc<>;
     }
 
     method block(::?CLASS:D: --> Block:D) {
@@ -110,6 +120,8 @@ class Throttler does Iterator {
 
     method block(::?CLASS:D: --> Block:D) { $!it.block }
 
+    method gc(::?CLASS:D: --> Bool:D) { $!it.gc }
+
     method pull-one(::?CLASS:_:) {
         use nqp;
         nqp::stmts(
@@ -120,23 +132,18 @@ class Throttler does Iterator {
     }
 }
 
-#|[ If True, Gauge will perform a garbage collection before an intensive
-    iteration. This allows for more stable results, thus is, by default, True
-    on backends supporting garbage collection. ]
-has Bool:D $.gc is default(so $*VM.name eq <moar jvm>.any);
-
 #|[ Produces a lazy sequence of native integer durations of calls to the given
     block via Gauge::It. ]
-method CALL-ME(::?CLASS:_: Block:D $block, *%attrinit --> ::?CLASS:D) {
-    my $self := self.new: It.new: :$block;
-    %attrinit ?? $self.clone(|%attrinit) !! $self
+method CALL-ME(::?CLASS:_: Block:D $block, Bool:D :$gc = gc --> ::?CLASS:D) {
+    self.new: It.new: :$block, :$gc
 }
 
 #|[ Counts iterations of the gauged block over a number of seconds via
     Gauge::Poller. ]
 method poll(::?CLASS:D: Real:D $seconds --> ::?CLASS:D) {
-    my $it := $!gc ?? Poller::Collected !! Poller::Raw;
-    self.new: $it.new: :$seconds, :it(self.iterator)
+    my $it := self.iterator;
+    my $ty := $it.gc ?? Poller::Collected !! Poller::Raw;
+    self.new: $ty.new: :$seconds, :$it
 }
 
 #|[ Sleeps a number of seconds between iterations of the gauged block via
