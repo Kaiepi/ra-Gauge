@@ -40,7 +40,7 @@ class It does Iterator {
         nqp::getcodeobj($!block)
     }
 
-    method pull-one(::?CLASS:_: --> uint64) {
+    method pull-one(::?CLASS:D: --> uint64) {
         # XXX: A monotonic solution via Inline::Perl5 takes too long to take
         # the time, slashing the number of iterations that can be counted. A
         # NativeCall solution is apt to have the similar problems. Using &now
@@ -70,8 +70,6 @@ role Poller does Iterator {
     }
 
     method block(::?CLASS:D: --> Block:D) { $!it.block }
-
-    method gc(::?CLASS:D: --> Bool:D) { ... }
 }
 
 #|[ Counts iterations over a nanosecond duration with minimal overhead, but as
@@ -79,7 +77,7 @@ role Poller does Iterator {
 class Poller::Raw does Poller {
     method gc(::?CLASS:_: --> False) { }
 
-    method pull-one(::?CLASS:_:) {
+    method pull-one(::?CLASS:D:) {
         use nqp;
         nqp::stmts(
           (my $ns is default(0)),
@@ -94,7 +92,7 @@ class Poller::Raw does Poller {
 class Poller::Collected does Poller {
     method gc(::?CLASS:_: --> True) { }
 
-    method pull-one(::?CLASS:_:) {
+    method pull-one(::?CLASS:D:) {
         use nqp;
         nqp::stmts(
           (my $ns is default(0)),
@@ -122,7 +120,7 @@ class Throttler does Iterator {
 
     method gc(::?CLASS:D: --> Bool:D) { $!it.gc }
 
-    method pull-one(::?CLASS:_:) {
+    method pull-one(::?CLASS:D:) {
         use nqp;
         nqp::stmts(
           nqp::if(
