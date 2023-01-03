@@ -2,12 +2,6 @@ use v6.d;
 die 'A VM version of v2022.04 or later is required for uint bug fixes' if $*VM.version < v2022.04;
 unit class Gauge:ver<0.0.5>:auth<zef:Kaiepi>:api<0> is Seq;
 
-my constant gc = so $*VM.name eq <moar jvm>.any;
-#|[ If True, Gauge will perform a garbage collection before an intensive
-    iteration. This allows for more stable results, thus is, by default, True
-    on backends supporting garbage collection. ]
-our sub gc(--> gc) { }
-
 #|[ A lazy, non-deterministic iterator that evaluates side effects when
     skipping rather than sinking. ]
 role Iterator does Iterator {
@@ -29,7 +23,7 @@ class It does Iterator {
     has $!block;
     has $.gc;
 
-    submethod BUILD(::?CLASS:D: Block:D :$block!, Bool:D :$gc = gc --> Nil) {
+    submethod BUILD(::?CLASS:D: Block:D :$block!, Bool:D :$gc = False --> Nil) {
         use nqp;
         $!block := nqp::getattr(nqp::decont($block), Code, '$!do');
         $!gc    := $gc<>;
@@ -130,11 +124,13 @@ class Throttler does Iterator {
     }
 }
 
-#|[ Produces a lazy sequence of native integer durations of calls to the given
-    block via Gauge::It. ]
-method CALL-ME(::?CLASS:_: Block:D $block, Bool:D :$gc = gc --> ::?CLASS:D) {
+#|[ Produces a lazy sequence of uint64 durations of calls to a block via
+    Gauge::It. ]
+method CALL-ME(::?CLASS:_: Block:D $block, Bool:D :$gc = False --> ::?CLASS:D) {
     self.new: It.new: :$block, :$gc
 }
+#=[ This may be configured to perform a GC before intensive operations (i.e.
+    poll as depended on by Gauge). In a relay, this can pause mid-iteration! ]
 
 #|[ Counts iterations of the gauged block over a number of seconds via
     Gauge::Poller. ]
