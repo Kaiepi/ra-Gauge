@@ -2,45 +2,31 @@ use v6.d;
 use Test;
 use Gauge;
 
-plan 11;
+plan 12;
+
+my constant SECOND = 1_000_000_000;
 
 {
     my $calls = 0;
-    my &block = -> --> True { $calls++ };
-    my $it = Gauge::It.new: :&block;
+    my $it = Gauge(-> { $calls++ }).iterator;
     ok $it ~~ Gauge::Iterator, 'Gauge::It is a type of Gauge::Iterator...';
     isa-ok $it.pull-one, Int, '...which produces an integer duration...';
     ok $calls, '...given a call to the block';
 };
 
 {
-    my $it = Gauge::Poller.new: :1seconds, it => Gauge::It.new: :block({ sleep 0.5 });
+    my $it = Gauge(-> { sleep 0.5 }).poll(1).iterator;
     ok $it ~~ Gauge::Iterator, 'Gauge::Poller is a type of Gauge::Iterator...';
-    isa-ok $it.pull-one, Int, '...which produces an integer count...';
-    my $begin := now;
-    my $count := $it.pull-one;
-    my $end := now;
-    ok 1 <= $count <= 2, '...which is reasonable...';
-    cmp-ok $end - $begin, &[>=], 1, '...taking at least its duration to complete';
+    isa-ok (my $count = $it.pull-one), Int, '...which produces an integer count...';
+    cmp-ok $count, &[~~], (1..2), '...which is reasonable...';
+    cmp-ok Gauge(-> { $it.pull-one }).head, &[>=], SECOND, '...taking at least its duration to complete...';
+    cmp-ok Gauge(-> { $it.skip-one }).head, &[>=], SECOND, '...even when skipped';
 }
 
 {
-    my $it = Gauge::Throttler.new: :1seconds, it => Gauge::It.new: :block({ (+*...*) });
+    my $it = Gauge(-> { (+*...*) }).throttle(1).iterator;
     ok $it ~~ Gauge::Iterator, 'Gauge::Throttler is a type of Gauge::Iterator...';
-    my @stamps[2];
-    my $begin := now;
-    my $stamp := $it.pull-one;
-    @stamps[0] := now - $begin;
-    isa-ok $stamp, Int, '...which transparently wraps its iterator...';
-    $begin := now;
-    $it.pull-one;
-    @stamps[1] := now - $begin;
-    cmp-ok @stamps[1], &[>], @stamps[0], '...performing a cooldown between iterations';
-}
-
-{
-    my $begin := now;
-    Gauge(-> { <0> <=> <0> }).throttle(1).skip(2);
-    my $end := now;
-    cmp-ok $end - $begin, &[>=], 1, 'skipping gauged iterations produces their side effects anyway';
+    isa-ok $it.pull-one, Int, '...which transparently wraps its iterator...';
+    cmp-ok Gauge(-> { $it.pull-one }).head, &[>=], SECOND, '...performing a cooldown between iterations...';
+    cmp-ok Gauge(-> { $it.skip-one }).head, &[>=], SECOND, '...even when skipped';
 }
