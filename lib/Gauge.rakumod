@@ -14,19 +14,15 @@ role Iterator does Iterator {
     method sink-all(::?CLASS:_: --> IterationEnd) { }
 
     method block(::?CLASS:_: --> Block:D) { ... }
-
-    method gc(::?CLASS:_: --> Bool:D) { ... }
 }
 
 #|[ Produces a nanosecond duration of a call to a block. ]
 class It does Iterator {
     has $!block;
-    has $.gc;
 
-    submethod BUILD(::?CLASS:D: Block:D :$block!, Bool:D :$gc = False --> Nil) {
+    submethod BUILD(::?CLASS:D: Block:D :$block! --> Nil) {
         use nqp;
         $!block := nqp::getattr(nqp::decont($block), Code, '$!do');
-        $!gc    := $gc<>;
     }
 
     method block(::?CLASS:D: --> Block:D) {
@@ -52,7 +48,7 @@ class It does Iterator {
     consequence. ]
 
 #|[ Counts iterations over a nanosecond duration. ]
-role Poller does Iterator {
+class Poller does Iterator {
     has $.seconds;
     has $!ns;
     has $!it;
@@ -64,12 +60,6 @@ role Poller does Iterator {
     }
 
     method block(::?CLASS:D: --> Block:D) { $!it.block }
-}
-
-#|[ Counts iterations over a nanosecond duration with minimal overhead, but as
-    a consequence, the likelihood of results being skewed by GC. ]
-class Poller::Raw does Poller {
-    method gc(::?CLASS:_: --> False) { }
 
     method pull-one(::?CLASS:D:) {
         use nqp;
@@ -80,24 +70,6 @@ class Poller::Raw does Poller {
           $n)
     }
 }
-
-#|[ Counts iterations over a nanosecond duration with garbage collection
-    beforehand to give stable results. ]
-class Poller::Collected does Poller {
-    method gc(::?CLASS:_: --> True) { }
-
-    method pull-one(::?CLASS:D:) {
-        use nqp;
-        nqp::stmts(
-          (my $ns is default(0)),
-          (my $n is default(0)),
-          nqp::force_gc(),
-          nqp::while((($ns += $!it.pull-one) < $!ns), ($n++)),
-          $n)
-    }
-}
-#|[ This should approach producing the most ideal scenario for an iteration
-    with regards to memory, but not quite manage to pull it off. ]
 
 #|[ Sleeps a number of seconds between iterations. ]
 class Throttler does Iterator {
@@ -112,8 +84,6 @@ class Throttler does Iterator {
 
     method block(::?CLASS:D: --> Block:D) { $!it.block }
 
-    method gc(::?CLASS:D: --> Bool:D) { $!it.gc }
-
     method pull-one(::?CLASS:D:) {
         use nqp;
         nqp::stmts(
@@ -126,18 +96,14 @@ class Throttler does Iterator {
 
 #|[ Produces a lazy sequence of uint64 durations of calls to a block via
     Gauge::It. ]
-method CALL-ME(::?CLASS:_: Block:D $block, Bool:D :$gc = False --> ::?CLASS:D) {
-    self.new: It.new: :$block, :$gc
+method CALL-ME(::?CLASS:_: Block:D $block --> ::?CLASS:D) {
+    self.new: It.new: :$block
 }
-#=[ This may be configured to perform a GC before intensive operations (i.e.
-    poll as depended on by Gauge). In a relay, this can pause mid-iteration! ]
 
 #|[ Counts iterations of the gauged block over a number of seconds via
     Gauge::Poller. ]
 method poll(::?CLASS:D: Real:D $seconds --> ::?CLASS:D) {
-    my $it := self.iterator;
-    my $ty := $it.gc ?? Poller::Collected !! Poller::Raw;
-    self.new: $ty.new: :$seconds, :$it
+    self.new: Poller.new: :$seconds, :it(self.iterator)
 }
 
 #|[ Sleeps a number of seconds between iterations of the gauged block via

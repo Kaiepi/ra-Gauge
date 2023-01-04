@@ -2,7 +2,7 @@ use v6.d;
 use Test;
 use Gauge;
 
-plan 17;
+plan 13;
 
 {
     my $calls = 0;
@@ -16,9 +16,9 @@ plan 17;
     }, '...despite any container it may carry';
 };
 
-for Gauge::Poller::Raw, Gauge::Poller::Collected -> \Poller {
-    my $it = Poller.new: :1seconds, it => Gauge::It.new: :block({ sleep 0.5 }), :gc(Poller.gc);
-    ok $it ~~ Gauge::Iterator, Poller.^name ~ ' is a type of Gauge::Iterator...';
+{
+    my $it = Gauge::Poller.new: :1seconds, it => Gauge::It.new: :block({ sleep 0.5 });
+    ok $it ~~ Gauge::Iterator, 'Gauge::Poller is a type of Gauge::Iterator...';
     isa-ok $it.pull-one, Int, '...which produces an integer count...';
     my $begin := now;
     my $count := $it.pull-one;
