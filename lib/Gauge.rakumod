@@ -12,8 +12,6 @@ role Iterator does Iterator {
     method skip-one(::?CLASS:_: --> True) { self.pull-one }
 
     method sink-all(::?CLASS:_: --> IterationEnd) { }
-
-    method block(::?CLASS:_: --> Block:D) { ... }
 }
 
 #|[ Produces a nanosecond duration of a call to a block. ]
@@ -23,11 +21,6 @@ class It does Iterator {
     submethod BUILD(::?CLASS:D: Block:D :$block! --> Nil) {
         use nqp;
         $!block := nqp::getattr(nqp::decont($block), Code, '$!do');
-    }
-
-    method block(::?CLASS:D: --> Block:D) {
-        use nqp;
-        nqp::getcodeobj($!block)
     }
 
     method pull-one(::?CLASS:D: --> uint64) {
@@ -49,17 +42,13 @@ class It does Iterator {
 
 #|[ Counts iterations over a nanosecond duration. ]
 class Poller does Iterator {
-    has $.seconds;
     has $!ns;
     has $!it;
 
     submethod BUILD(::?CLASS:D: Real:D :$seconds!, Iterator:D :$it! --> Nil) {
-        $!seconds := $seconds<>;
-        $!ns       = $seconds * 1_000_000_000 +^ 0;
-        $!it      := $it<>;
+        $!ns  = $seconds * 1_000_000_000 +^ 0;
+        $!it := $it<>;
     }
-
-    method block(::?CLASS:D: --> Block:D) { $!it.block }
 
     method pull-one(::?CLASS:D:) {
         use nqp;
@@ -73,23 +62,18 @@ class Poller does Iterator {
 
 #|[ Sleeps a number of seconds between iterations. ]
 class Throttler does Iterator {
-    has num $.seconds;
-    has     $!it;
-    has     $!sleeps;
+    has num $!seconds;
+    has $!it;
+    has $!sleeps is default(False);
 
     submethod BUILD(::?CLASS:D: Num(Real:D) :$!seconds!, Iterator:D :$it! --> Nil) {
-        $!it     := $it<>;
-        $!sleeps  = False;
+        $!it := $it<>;
     }
-
-    method block(::?CLASS:D: --> Block:D) { $!it.block }
 
     method pull-one(::?CLASS:D:) {
         use nqp;
         nqp::stmts(
-          nqp::if(
-            nqp::cas($!sleeps, False, True),
-            nqp::sleep($!seconds)),
+          nqp::if(nqp::cas($!sleeps, False, True), nqp::sleep($!seconds)),
           $!it.pull-one)
     }
 }

@@ -2,18 +2,15 @@ use v6.d;
 use Test;
 use Gauge;
 
-plan 13;
+plan 11;
 
 {
     my $calls = 0;
     my &block = -> --> True { $calls++ };
     my $it = Gauge::It.new: :&block;
     ok $it ~~ Gauge::Iterator, 'Gauge::It is a type of Gauge::Iterator...';
-    lives-ok {
-        isa-ok $it.pull-one, Int, '...which produces an integer duration...';
-        ok $calls, '...given a call to the block...';
-        cmp-ok $it.block, &[eqv], &block, '...which is equivalent to the original...';
-    }, '...despite any container it may carry';
+    isa-ok $it.pull-one, Int, '...which produces an integer duration...';
+    ok $calls, '...given a call to the block';
 };
 
 {
