@@ -9,9 +9,11 @@ role Iterator does Iterator {
 
     method is-deterministic(::?CLASS:_: --> False) { }
 
-    method skip-one(::?CLASS:_: --> True) { self.pull-one }
+    method time-one(::?CLASS:_:) { ... }
 
-    method sink-all(::?CLASS:_: --> IterationEnd) { }
+    method skip-one(::?CLASS:_:) { ... }
+
+    method sink-all(::?CLASS:_:) { ... }
 }
 
 #|[ Produces a nanosecond duration of a call to a block. ]
@@ -23,7 +25,7 @@ class It does Iterator {
         $!block := nqp::getattr(nqp::decont($block), Code, '$!do');
     }
 
-    method pull-one(::?CLASS:D: --> uint64) {
+    method time-one(::?CLASS:D: --> uint64) {
         # XXX: A monotonic solution via Inline::Perl5 takes too long to take
         # the time, slashing the number of iterations that can be counted. A
         # NativeCall solution is apt to have the similar problems. Using &now
@@ -36,6 +38,16 @@ class It does Iterator {
           nqp::call($!block),
           nqp::sub_i(nqp::time(), $begin))
     }
+
+    method pull-one(::?CLASS:D: --> uint64) {
+        self.time-one
+    }
+
+    method skip-one(::?CLASS:D: --> True) {
+        self.pull-one # boop any optimizers
+    }
+
+    method sink-all(::?CLASS:D: --> IterationEnd) { }
 }
 #=[ This is based off the real clock time, and isn't monotonic as a
     consequence. ]
@@ -50,13 +62,32 @@ class Poller does Iterator {
         $!it := $it<>;
     }
 
+    method time-one(::?CLASS:D:) {
+        use nqp;
+        nqp::stmts(
+          (my $ns is default(0)),
+          nqp::repeat_while(($ns < $!ns), ($ns += $!it.time-one)),
+          $ns)
+    }
+
     method pull-one(::?CLASS:D:) {
         use nqp;
         nqp::stmts(
           (my $ns is default(0)),
           (my $n is default(0)),
-          nqp::while((($ns += $!it.pull-one) < $!ns), ($n++)),
+          nqp::while((($ns += $!it.time-one) < $!ns), ($n++)),
           $n)
+    }
+
+    method skip-one(::?CLASS:D: --> True) {
+        use nqp;
+        nqp::stmts(
+          (my $ns is default(0)),
+          nqp::repeat_while(($ns < $!ns), ($ns += $!it.time-one)))
+    }
+
+    method sink-all(::?CLASS:D:) {
+        $!it.sink-all
     }
 }
 
@@ -70,11 +101,36 @@ class Throttler does Iterator {
         $!it := $it<>;
     }
 
+    method time-one(::?CLASS:D:) {
+        use nqp;
+        (nqp::cas($!sleeps, False, True) && clock $!seconds) + $!it.time-one
+    }
+
     method pull-one(::?CLASS:D:) {
         use nqp;
+        (nqp::cas($!sleeps, False, True) && block $!seconds) || $!it.pull-one
+    }
+
+    method skip-one(::?CLASS:D:) {
+        use nqp;
+        (nqp::cas($!sleeps, False, True) && block $!seconds) || $!it.skip-one
+    }
+
+    method sink-all(::?CLASS:D:) {
+        $!it.sink-all # just do it
+    }
+
+    sub block(num $seconds --> False) is pure {
+        use nqp;
+        nqp::sleep($seconds)
+    }
+
+    sub clock(num $seconds --> uint64) is pure {
+        use nqp;
         nqp::stmts(
-          nqp::if(nqp::cas($!sleeps, False, True), nqp::sleep($!seconds)),
-          $!it.pull-one)
+          (my uint64 $ns = nqp::time()),
+          nqp::sleep($seconds),
+          nqp::sub_i(nqp::time(), $ns))
     }
 }
 

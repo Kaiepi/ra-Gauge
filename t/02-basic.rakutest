@@ -2,7 +2,7 @@ use v6.d;
 use Test;
 use Gauge;
 
-plan 12;
+plan 18;
 
 my constant SECOND = 1_000_000_000;
 
@@ -24,9 +24,23 @@ my constant SECOND = 1_000_000_000;
 }
 
 {
-    my $it = Gauge(-> { (+*...*) }).throttle(1).iterator;
+    my $it = Gauge(-> { (**...**) }).throttle(1).iterator;
     ok $it ~~ Gauge::Iterator, 'Gauge::Throttler is a type of Gauge::Iterator...';
     isa-ok $it.pull-one, Int, '...which transparently wraps its iterator...';
     cmp-ok Gauge(-> { $it.pull-one }).head, &[>=], SECOND, '...performing a cooldown between iterations...';
+    cmp-ok Gauge(-> { $it.skip-one }).head, &[>=], SECOND, '...even when skipped';
+}
+
+{
+    my $it = Gauge(-> { (｢｣...｢｣) }).throttle(1).poll(0.5).iterator;
+    cmp-ok $it.pull-one, &[==], 1, 'Gauge::Poller polls before the cooldown of a Gauge::Throttler...';
+    cmp-ok Gauge(-> { $it.pull-one }).head, &[>=], SECOND, '...while preserving it between iterations...';
+    cmp-ok Gauge(-> { $it.skip-one }).head, &[>=], SECOND, '...even when skipped';
+}
+
+{
+    my $it = Gauge(-> { ($++,++$) }).poll(0.5).throttle(0.5).iterator;
+    cmp-ok $it.pull-one, &[>], 1, 'Gauge::Throttler does not throttle the poll of a Gauge::Poller...';
+    cmp-ok Gauge(-> { $it.pull-one }).head, &[>=], SECOND, '...but the iteration performing a poll...';
     cmp-ok Gauge(-> { $it.skip-one }).head, &[>=], SECOND, '...even when skipped';
 }
