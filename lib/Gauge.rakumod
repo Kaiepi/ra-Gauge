@@ -16,6 +16,10 @@ role Iterator does Iterator {
     method sink-all(::?CLASS:_:) { ... }
 }
 
+method new(::?CLASS:_: Iterator:D $it --> ::?CLASS:D) {
+    callwith $it
+}
+
 #|[ Produces a nanosecond duration of a call to a block. ]
 class It does Iterator {
     has $!block;
@@ -23,6 +27,10 @@ class It does Iterator {
     submethod BUILD(::?CLASS:D: Block:D :$block! --> Nil) {
         use nqp;
         $!block := nqp::getattr(nqp::decont($block), Code, '$!do');
+    }
+
+    method CALL-ME(::?CLASS:_: $block --> ::?CLASS:D) {
+        self.bless: :$block
     }
 
     method time-one(::?CLASS:D: --> uint64) {
@@ -52,6 +60,12 @@ class It does Iterator {
 #=[ This is based off the real clock time, and isn't monotonic as a
     consequence. ]
 
+#|[ Produces a lazy sequence of uint64 durations of calls to a block via
+    Gauge::It. ]
+method CALL-ME(::?CLASS:_: Block:D $block --> ::?CLASS:D) {
+    self.new: It($block)
+}
+
 #|[ Counts iterations over a nanosecond duration. ]
 class Poller does Iterator {
     has $!ns;
@@ -60,6 +74,10 @@ class Poller does Iterator {
     submethod BUILD(::?CLASS:D: Real:D :$seconds!, Iterator:D :$it! --> Nil) {
         $!ns  = $seconds * 1_000_000_000 +^ 0;
         $!it := $it<>;
+    }
+
+    method CALL-ME(::?CLASS:_: $seconds, $it --> ::?CLASS:D) {
+        self.bless: :$seconds, :$it
     }
 
     method time-one(::?CLASS:D:) {
@@ -91,6 +109,12 @@ class Poller does Iterator {
     }
 }
 
+#|[ Counts iterations of the gauged block over a number of seconds via
+    Gauge::Poller. ]
+method poll(::?CLASS:D: Real:D $seconds --> ::?CLASS:D) {
+    self.new: Poller($seconds, self.iterator)
+}
+
 #|[ Sleeps a number of seconds between iterations. ]
 class Throttler does Iterator {
     has num $!seconds;
@@ -99,6 +123,10 @@ class Throttler does Iterator {
 
     submethod BUILD(::?CLASS:D: Num(Real:D) :$!seconds!, Iterator:D :$it! --> Nil) {
         $!it := $it<>;
+    }
+
+    method CALL-ME(::?CLASS:_: $seconds, $it --> ::?CLASS:D) {
+        self.bless: :$seconds, :$it
     }
 
     method time-one(::?CLASS:D:) {
@@ -134,20 +162,8 @@ class Throttler does Iterator {
     }
 }
 
-#|[ Produces a lazy sequence of uint64 durations of calls to a block via
-    Gauge::It. ]
-method CALL-ME(::?CLASS:_: Block:D $block --> ::?CLASS:D) {
-    self.new: It.new: :$block
-}
-
-#|[ Counts iterations of the gauged block over a number of seconds via
-    Gauge::Poller. ]
-method poll(::?CLASS:D: Real:D $seconds --> ::?CLASS:D) {
-    self.new: Poller.new: :$seconds, :it(self.iterator)
-}
-
 #|[ Sleeps a number of seconds between iterations of the gauged block via
     Gauge::Throttler. ]
 method throttle(::?CLASS:D: Real:D $seconds --> ::?CLASS:D) {
-    self.new: Throttler.new: :$seconds, :it(self.iterator)
+    self.new: Throttler($seconds, self.iterator)
 }
