@@ -2,7 +2,7 @@ use v6.d;
 use Test;
 use Gauge;
 
-plan 18;
+plan 21;
 
 my constant SECOND = 1_000_000_000;
 
@@ -43,4 +43,27 @@ my constant SECOND = 1_000_000_000;
     cmp-ok $it.pull-one, &[>], 1, 'Gauge::Throttler does not throttle the poll of a Gauge::Poller...';
     cmp-ok Gauge(-> { $it.pull-one }).head, &[>=], SECOND, '...but the iteration performing a poll...';
     cmp-ok Gauge(-> { $it.skip-one }).head, &[>=], SECOND, '...even when skipped';
+}
+
+{
+    my $calls = $*THREAD.id;
+    my $it = Gauge(-> { $calls ⚛= $*THREAD.id }).pledge(0).iterator;
+    $it.skip-one;
+    cmp-ok ⚛$calls, &[==], $*THREAD.id, 'a void pledge does not a thread make';
+}
+
+if $*KERNEL.cpu-cores < 1 {
+    skip 'Gauge::Covenant needs threads!';
+} else {
+    my $calls = $*THREAD.id;
+    my $it = Gauge(-> { $calls ⚛= $*THREAD.id }).pledge(1).iterator;
+    $it.skip-one;
+    cmp-ok ⚛$calls, &[!=], $*THREAD.id, 'Gauge::Covenant iterates from another thread';
+}
+
+if $*KERNEL.cpu-cores < 2 {
+    skip 'Gauge::Contract needs threads!';
+} else {
+    my $it = Gauge(-> { (0+*∘*+0) }).throttle(1).poll(1).pledge(2).iterator;
+    cmp-ok $it.pull-one, &[>], $it.pull-one, 'Gauge::Contract can time in parallel following its cycle';
 }

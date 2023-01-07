@@ -2,8 +2,8 @@ use v6.d;
 die 'A VM version of v2022.04 or later is required for uint bug fixes' if $*VM.version < v2022.04;
 unit class Gauge:ver<0.0.5>:auth<zef:Kaiepi>:api<0> is Seq;
 
-#|[ A lazy, non-deterministic iterator that evaluates side effects when
-    skipping rather than sinking. ]
+#|[ A temporal, lazy, non-deterministic iterator that will evaluate side
+    effects moreso when skipping iterations than when sinking them away. ]
 role Iterator does Iterator {
     method is-lazy(::?CLASS:_: --> True) { }
 
@@ -14,7 +14,10 @@ role Iterator does Iterator {
     method skip-one(::?CLASS:_:) { ... }
 
     method sink-all(::?CLASS:_:) { ... }
+
 }
+#=[ This is expected to be able to coerce via list. The singleton list
+    provided by the default Any parent is OK unless this is mutable. ]
 
 method new(::?CLASS:_: Iterator:D $it --> ::?CLASS:D) {
     callwith $it
@@ -166,4 +169,157 @@ class Throttler does Iterator {
     Gauge::Throttler. ]
 method throttle(::?CLASS:D: Real:D $seconds --> ::?CLASS:D) {
     self.new: Throttler($seconds, self.iterator)
+}
+
+#|[ A thread that can map a Gauge::Iterator by making a pledge to reevaluate a
+    command after each request to make one, ahead of any presumed repetition. ]
+class Covenant is Thread does Iterator {
+    my $band is default(0);
+
+    has $!it;
+    has $!wanted;
+    has $!marked;
+    has $!taking is default(False);
+    has $!command;
+    has $!message;
+
+    submethod BUILD(::?CLASS:D: Iterator:D :$it! --> Nil) {
+        $!it     := $it<>;
+        $!wanted := Semaphore.new: 0;
+        $!marked := Semaphore.new: 1;
+    }
+
+    method new(::?CLASS:_: Iterator:D :$it! --> ::?CLASS:D) {
+        callwith :$it, :code(&answer), :name('gauge ' ~ cas $band, *.succ), :app_lifetime
+    }
+
+    proto method CALL-ME(::?CLASS:_: $ --> ::?CLASS:D) {*}
+    multi method CALL-ME(::?CLASS:_: Iterator:D $it) {
+        self.new: :$it
+    }
+    multi method CALL-ME(::?CLASS:_: Gauge:D $gauged) {
+        self.new: :it($gauged.iterator)
+    }
+    multi method CALL-ME(::?CLASS:_: ::?CLASS:D $pledge) {
+        $pledge
+    }
+
+    method run(::?CLASS:D: --> ::?CLASS:D) {
+        use nqp;
+        nqp::cas($!taking, False, True) ?? self !! (callsame)
+    }
+
+    method finish(::?CLASS:D: --> ::?CLASS:D) {
+        use nqp;
+        nqp::cas($!taking, True, False) ?? (callsame) !! self
+    }
+
+    method time-one(::?CLASS:D:) {
+        self.request: my constant &time-one = *.time-one
+    }
+
+    method pull-one(::?CLASS:D:) {
+        self.request: my constant &pull-one = *.pull-one
+    }
+
+    method skip-one(::?CLASS:D:) {
+        self.request: my constant &skip-one = *.skip-one
+    }
+
+    method sink-all(::?CLASS:D:) {
+        my $sunken := self.request: my constant &sink-all = *.sink-all;
+        self.finish;
+        $sunken
+    }
+
+    method request(::?CLASS:D: $command) {
+        # We only block when we know we're not repeating the previous command.
+        use nqp;
+        nqp::eqaddr(nqp::atomicload($!command), nqp::decont($command))
+          ?? (follow self)
+          !! (follow pledge self, $command)
+    }
+
+    my method pledge(::?CLASS:D: $command) {
+        # Prescribe a command to evaluate repetitively from a separate thread.
+        use nqp;
+        nqp::stmts(
+          nqp::semacquire($!marked),
+          nqp::atomicstore($!command, $command),
+          nqp::semrelease($!wanted),
+          self.run)
+    }
+
+    my method answer(::?CLASS:D $ = $*THREAD: --> Nil) {
+        # Respond to commands from the root thread with an evaluation of ours.
+        use nqp;
+        nqp::while(
+          nqp::atomicload($!taking),
+          nqp::stmts(
+            nqp::semacquire($!wanted),
+            nqp::atomicstore($!message, nqp::atomicload($!command)($!it)),
+            nqp::semrelease($!marked)));
+    }
+
+    my method follow(::?CLASS:D:) {
+        # Take the response to a request, following through on its redo pledge.
+        use nqp;
+        nqp::stmts(
+          nqp::semacquire($!marked),
+          (my $message := nqp::atomicload($!message)),
+          nqp::semrelease($!wanted),
+          $message)
+    }
+}
+
+#|[ Concatenates a flattened list of iterators, each bound via Gauge::Covenant. ]
+class Contract does Iterator {
+    has @!frames;
+    has uint $!length;
+    has uint $!reader;
+    has uint $!writer;
+
+    submethod BUILD(::?CLASS:D: :@frames! --> Nil) {
+        @!frames := @frames.map({ Covenant($^it) }).eager;
+        $!length  = @!frames.elems;
+    }
+
+    method CALL-ME(::?CLASS:_: *@frames --> ::?CLASS:D) {
+        self.bless: :@frames
+    }
+
+    method step-one(::?CLASS:D: --> uint) {
+        use nqp;
+        ($!reader ||= (nqp::isge_u($!writer,$!length) ?? $!length !! ++$!writer)) -= 1
+    }
+
+    method time-one(::?CLASS:D:) {
+        @!frames.AT-POS(self.step-one).time-one
+    }
+
+    method pull-one(::?CLASS:D:) {
+        @!frames.AT-POS(self.step-one).pull-one
+    }
+
+    method skip-one(::?CLASS:D:) {
+        @!frames.AT-POS(self.step-one).skip-one
+    }
+
+    method sink-all(::?CLASS:D: --> IterationEnd) {
+        @!frames.AT-POS(self.step-one).sink-all xx $!length
+    }
+
+    multi method list(::?CLASS:D:) {
+        @!frames
+    }
+}
+#|[ This will start threads in sequence, but will exhaust any initialized
+    threads in a cycle of iterations in reverse before running a new one. ]
+
+#|[ Threads iterations while making an eager contract to predict iterations via
+    Gauge::Contract and Gauge::Covenant. ]
+method pledge(::?CLASS:D: UInt:D $length --> ::?CLASS:D) {
+    my $it := self.iterator;
+    my $cs := head $length, flat @$it xx *;
+    self.new: $cs.elems == 1 ?? Covenant($cs.head) !! $cs ??  Contract(@$cs) !! $it
 }
