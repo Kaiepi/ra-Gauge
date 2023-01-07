@@ -11,9 +11,62 @@ Gauge - Iterative polling
 =begin code :lang<raku>
 use v6.d;
 use Gauge;
-# How fast can (1..10) be generated? Take an estimate of how many iterations
-# can be sunk in 1 second every 20 seconds:
-.say for Gauge(-> --> Nil { sink 1..10 }).poll(1).throttle(19);
+
+#|[ Jury-rigged benchmark that keys it/s counts of an evaluated code block. ]
+sub MAIN(
+    **@code,
+    #|[ The number of threads to dedicate to benchmarking. ]
+    UInt:D :j(:$jobs) = $*KERNEL.cpu-cores.pred,
+    #|[ The duration in seconds over which timestamps will be aggregated. ]
+    Real:D :p(:$period) = 1,
+    #|[ The cooldown in seconds performed between each individual benchmark. ]
+    Real:D :c(:$cooldown) = (try 2 / 3 * $jobs * $period orelse 2 / 3 * $*KERNEL.cpu-cores.pred),
+    #|[ Whether or not ANSI 24-bit SGR escape sequences should be suppressed.
+        These highlight blocks of it/s counts opneing with newfound maximums. ]
+    Bool:D :m(:$mono) = False,
+--> Nil) {
+    use MONKEY-SEE-NO-EVAL;
+    map $mono ?? &mono !! &poly,
+        Gauge(EVAL Qa[-> { @code.join() }])
+            .poll($period)
+            .pledge($jobs)
+            .throttle($cooldown);
+}
+#=[ Benchmark threads are run once an iteration of any existing threads has
+    been exhausted. This is staggered by the cooldown, and by default, allows
+    for multiple benchmarks to be taken with a brief overlap of threaded work,
+    reducing the time needed to aggregate results while keeping low overhead. ]
+
+sub poly(Int:D $next --> Empty) {
+    my constant @mark = «\e[48;5;198m \e[48;5;202m \e[48;5;178m \e[48;5;41m \e[48;5;25m \e[48;5;129m»;
+    state $mark is default(-1);
+    state $peak is default(0);
+
+    my $jump := $peak < $next;
+    $mark += $jump;
+    $mark %= @mark;
+    $peak max= $next;
+
+    my $note = @mark[$mark];
+    $note ~= $jump ?? '⊛' !! '∗';
+    $note ~= " \e[m";
+    $note ~= $next;
+
+    put $note
+}
+
+sub mono(Int:D $next --> Empty) {
+    state $peak is default(0);
+
+    my $jump := $peak < $next;
+    $peak max= $next;
+
+    my $note = $jump ?? '⊛' !! '∗';
+    $note ~= ' ';
+    $note ~= $next;
+
+    put $note
+}
 =end code
 
 =head1 DESCRIPTION
@@ -21,37 +74,22 @@ use Gauge;
 =for code :lang<raku>
 class Gauge is Seq { ... }
 
-C<Gauge>, in general, wraps a lazy, non-deterministic, time-oriented iterator.
-At its base, it attempts to measure durations of calls to a block with as
-little overhead as possible in order to avoid unnecessary influence over
-results. This does not make for a proper benchmark on its own, but may provide
-raw input for such a utility.
-
-=head1 ATTRIBUTES
-
-=head2 $!gc
-
-=for code :lang<raku>
-has Bool:D $.gc is default(so $*VM.name eq <moar jvm>.any);
-
-C<$!gc> toggles garbage collection before intensive iterations in general,
-i.e. those of C<poll> currently. By default, this will be C<True> on MoarVM and
-the JVM. If set to C<False>, iterations are very likely to be skewed by any
-interruption due to GC (if available).
+C<Gauge>, in general, provides an interface for a collection of temporal, lazy,
+non-deterministic iterators. At its base, it attempts to measure durations of
+calls to a block with as little overhead as possible in order to avoid
+unnecessary influence over results. This can stack operations mapping its
+iterator until it decays to a C<Seq> via C<Iterable> or the C<iterator> itself.
 
 =head1 METHODS
 
 =head2 CALL-ME
 
 =for code :lang<raku>
-method CALL-ME(::?CLASS:_: Block:D $block, *%attrinit --> ::?CLASS:D)
+method CALL-ME(::?CLASS:_: Block:D $block --> ::?CLASS:D)
 
 Produces a new C<Gauge> sequence of native C<uint64> durations of a call to the
 given block. Measurements of each duration are B<not> monotonic, thus leap
 seconds and hardware errors will skew results.
-
-If C<%attrinit> is provided, a clone will be produced with it to allow for
-attributes to be set.
 
 =head2 poll
 
@@ -60,7 +98,8 @@ method poll(::?CLASS:D: Real:D $seconds --> ::?CLASS:D)
 
 Returns a new C<Gauge> sequence that produces an C<Int:D> count of iterations
 of the former totalling a duration of C<$seconds>. This will take longer than
-the given argument to complete due to the overhead of iteration.
+the given argument to complete due to the overhead of iteration, which may be
+measured by C<Gauge> itself in combination with C<head>.
 
 =head2 throttle
 
@@ -68,7 +107,35 @@ the given argument to complete due to the overhead of iteration.
 method throttle(::?CLASS:D: Real:D $seconds --> ::?CLASS:D)
 
 Returns a new C<Gauge> sequence that will sleep C<$seconds> between iterations
-of the former.
+of its former. If a C<poll> is applied later, this will incorporate the time
+waited into the time it takes to complete an iteration, but not any steps in
+between required to caculated. The total time throttled is allowed to exceed
+any poll applied to a C<Gauge>, but never by any more than one iteration.
+
+=head2 pledge
+
+=for code :lang<raku>
+method pledge(::?CLASS:D: UInt:D $length --> ::?CLASS:D)
+
+Returns a new C<Gauge> sequence that, across an array of threads of breadth
+C<$length>, pledges that a form of iteration will be continuously invoked
+across a threaded repetition of this iterator's component iterators in the
+process. When an empty length is given, this will not change the iteration.
+
+When a length of C<1> is given, this will produce a C<covenant> wrapping the
+iterator. This is a thread that upon receiving a query to perform an iteration,
+will produce its result, then go ahead and perform another iteration while
+waiting for the next query. This means switching from C<skip> to C<head> may
+perform an extra C<skip> whose result is discarded while waiting for C<head>.
+Such a thread will finish in a sink context, but is allowed to wait until the
+end of a program after decaying to another C<Seq> when it doesn't play nice.
+
+When a length of C<2> or more is given, a I<contract> wrapping this number of
+covenants will be formed. This carries a particular cycle followed to
+accomodate any throttling performed beforehand. A thread must be spawned in
+order to work, but any prior threads may complete an iteration during this
+timespan, and will be waited on in reverse as each covenant is run in its
+original ordering.
 
 =head1 AUTHOR
 
@@ -76,7 +143,7 @@ Ben Davies (Kaiepi)
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright 2022 Ben Davies
+Copyright 2023 Ben Davies
 
 This library is free software; you can redistribute it and/or modify it under the Artistic License 2.0.
 
