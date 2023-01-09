@@ -27,7 +27,7 @@ sub MAIN(
 --> Nil) {
     use MONKEY-SEE-NO-EVAL;
     map $mono ?? &mono !! &poly,
-        Gauge(EVAL Qa[-> { @code.join() }])
+        Gauge(EVAL Qa[-> { @code.join(' ') }])
             .poll($period)
             .pledge($jobs)
             .throttle($cooldown);
