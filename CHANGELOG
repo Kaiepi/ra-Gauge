@@ -35,3 +35,6 @@ v1.0.0:
     - Gauge.pledge, a method for spanning a gauged iterator across multiple
       threads, is introduced.
     - A practical benchmark has been included in the README.
+
+v1.0.1:
+    - Don't demand the existence of nqp::isge_u for a uint64 comparison.

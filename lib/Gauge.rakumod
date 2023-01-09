@@ -1,6 +1,6 @@
 use v6.d;
 die 'A VM version of v2022.04 or later is required for uint bug fixes' if $*VM.version < v2022.04;
-unit class Gauge:ver<1.0.0>:auth<zef:Kaiepi>:api<1> is Seq;
+unit class Gauge:ver<1.0.1>:auth<zef:Kaiepi>:api<1> is Seq;
 
 #|[ A temporal, lazy, non-deterministic iterator that will evaluate side
     effects moreso when skipping iterations than when sinking them away. ]
