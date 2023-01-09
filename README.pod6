@@ -122,7 +122,7 @@ C<$length>, pledges that a form of iteration will be continuously invoked
 across a threaded repetition of this iterator's component iterators in the
 process. When an empty length is given, this will not change the iteration.
 
-When a length of C<1> is given, this will produce a C<covenant> wrapping the
+When a length of C<1> is given, this will produce a I<covenant> wrapping the
 iterator. This is a thread that upon receiving a query to perform an iteration,
 will produce its result, then go ahead and perform another iteration while
 waiting for the next query. This means switching from C<skip> to C<head> may
