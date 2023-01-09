@@ -2,48 +2,68 @@ use v6.d;
 use Test;
 use Gauge;
 
-plan 17;
+plan 21;
+
+my constant SECOND = 1_000_000_000;
 
 {
     my $calls = 0;
-    my &block = -> --> True { $calls++ };
-    my $it = Gauge::It.new: :&block;
+    my $it = Gauge(-> { $calls++ }).iterator;
     ok $it ~~ Gauge::Iterator, 'Gauge::It is a type of Gauge::Iterator...';
-    lives-ok {
-        isa-ok $it.pull-one, Int, '...which produces an integer duration...';
-        ok $calls, '...given a call to the block...';
-        cmp-ok $it.block, &[eqv], &block, '...which is equivalent to the original...';
-    }, '...despite any container it may carry';
+    isa-ok $it.pull-one, Int, '...which produces an integer duration...';
+    ok $calls, '...given a call to the block';
 };
 
-for Gauge::Poller::Raw, Gauge::Poller::Collected -> \Poller {
-    my $it = Poller.new: :1seconds, it => Gauge::It.new: :block({ sleep 0.5 });
-    ok $it ~~ Gauge::Iterator, Poller.^name ~ ' is a type of Gauge::Iterator...';
-    isa-ok $it.pull-one, Int, '...which produces an integer count...';
-    my $begin := now;
-    my $count := $it.pull-one;
-    my $end := now;
-    ok 1 <= $count <= 2, '...which is reasonable...';
-    cmp-ok $end - $begin, &[>=], 1, '...taking at least its duration to complete';
+{
+    my $it = Gauge(-> { sleep 0.5 }).poll(1).iterator;
+    ok $it ~~ Gauge::Iterator, 'Gauge::Poller is a type of Gauge::Iterator...';
+    isa-ok (my $count = $it.pull-one), Int, '...which produces an integer count...';
+    cmp-ok $count, &[~~], (1..2), '...which is reasonable...';
+    cmp-ok Gauge(-> { $it.pull-one }).head, &[>=], SECOND, '...taking at least its duration to complete...';
+    cmp-ok Gauge(-> { $it.skip-one }).head, &[>=], SECOND, '...even when skipped';
 }
 
 {
-    my $it = Gauge::Throttler.new: :1seconds, it => Gauge::It.new: :block({ (+*...*) });
+    my $it = Gauge(-> { (**...**) }).throttle(1).iterator;
     ok $it ~~ Gauge::Iterator, 'Gauge::Throttler is a type of Gauge::Iterator...';
-    my @stamps[2];
-    my $begin := now;
-    my $stamp := $it.pull-one;
-    @stamps[0] := now - $begin;
-    isa-ok $stamp, Int, '...which transparently wraps its iterator...';
-    $begin := now;
-    $it.pull-one;
-    @stamps[1] := now - $begin;
-    cmp-ok @stamps[1], &[>], @stamps[0], '...performing a cooldown between iterations';
+    isa-ok $it.pull-one, Int, '...which transparently wraps its iterator...';
+    cmp-ok Gauge(-> { $it.pull-one }).head, &[>=], SECOND, '...performing a cooldown between iterations...';
+    cmp-ok Gauge(-> { $it.skip-one }).head, &[>=], SECOND, '...even when skipped';
 }
 
 {
-    my $begin := now;
-    Gauge(-> { <0> <=> <0> }).throttle(1).skip(2);
-    my $end := now;
-    cmp-ok $end - $begin, &[>=], 1, 'skipping gauged iterations produces their side effects anyway';
+    my $it = Gauge(-> { (｢｣...｢｣) }).throttle(1).poll(0.5).iterator;
+    cmp-ok $it.pull-one, &[==], 1, 'Gauge::Poller polls before the cooldown of a Gauge::Throttler...';
+    cmp-ok Gauge(-> { $it.pull-one }).head, &[>=], SECOND, '...while preserving it between iterations...';
+    cmp-ok Gauge(-> { $it.skip-one }).head, &[>=], SECOND, '...even when skipped';
+}
+
+{
+    my $it = Gauge(-> { ($++,++$) }).poll(0.5).throttle(0.5).iterator;
+    cmp-ok $it.pull-one, &[>], 1, 'Gauge::Throttler does not throttle the poll of a Gauge::Poller...';
+    cmp-ok Gauge(-> { $it.pull-one }).head, &[>=], SECOND, '...but the iteration performing a poll...';
+    cmp-ok Gauge(-> { $it.skip-one }).head, &[>=], SECOND, '...even when skipped';
+}
+
+{
+    my $calls = $*THREAD.id;
+    my $it = Gauge(-> { $calls ⚛= $*THREAD.id }).pledge(0).iterator;
+    $it.skip-one;
+    cmp-ok ⚛$calls, &[==], $*THREAD.id, 'a void pledge does not a thread make';
+}
+
+if $*KERNEL.cpu-cores < 1 {
+    skip 'Gauge::Covenant needs threads!';
+} else {
+    my $calls = $*THREAD.id;
+    my $it = Gauge(-> { $calls ⚛= $*THREAD.id }).pledge(1).iterator;
+    $it.skip-one;
+    cmp-ok ⚛$calls, &[!=], $*THREAD.id, 'Gauge::Covenant iterates from another thread';
+}
+
+if $*KERNEL.cpu-cores < 2 {
+    skip 'Gauge::Contract needs threads!';
+} else {
+    my $it = Gauge(-> { (0+*∘*+0) }).throttle(1).poll(1).pledge(2).iterator;
+    cmp-ok $it.pull-one, &[>], $it.pull-one, 'Gauge::Contract can time in parallel following its cycle';
 }
