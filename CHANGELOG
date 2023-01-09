@@ -15,3 +15,23 @@ v0.0.4:
 
 v0.0.5:
     - Correct outdated comment in the README.
+
+v1.0.0:
+    - GC is eliminated from the time library altogether. Its absense is
+      primarily responsible for any jump in polls, though this may not persist
+      and may produce large drops in numbers sometimes compared to with GC.
+    - Gauge.new now types one Gauge::Iterator:D $it.
+    - Gauge::Iterator now carries stubs for time-one, pull-one, skip-one, and
+      sink-all "getters". skip-one must return True, while the rest are untyped.
+    - Gauge::It no longer exposes its block.
+    - Gauge::Poller is now a true class equivalent to Gauge::Poller::Raw prior.
+    - Gauge::Poller::Raw and Gauge::Poller::Collected have been removed.
+    - Gauge::Throttler now includes its throttle in the time it takes to
+      perform an iteration via time-one, which Gauge::Poller solely depends on.
+    - Gauge::Covenant, a thread that can process commands defined by
+      Gauge::Iterator, is introduced.
+    - Gauge::Contract, a container for a list of iterators to be processed in
+      parallel, is introduced.
+    - Gauge.pledge, a method for spanning a gauged iterator across multiple
+      threads, is introduced.
+    - A practical benchmark has been included in the README.

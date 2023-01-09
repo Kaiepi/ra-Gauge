@@ -13,7 +13,7 @@
   "source-url": "https://github.com/Kaiepi/ra-Gauge.git",
   "tags": [ "benchmark" ],
   "test-depends": [ ],
-  "version": "0.0.5",
+  "version": "1.0.0",
   "auth": "zef:Kaiepi",
-  "api": "0"
+  "api": "1"
 }
