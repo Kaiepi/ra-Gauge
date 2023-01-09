@@ -290,7 +290,7 @@ class Contract does Iterator {
 
     method step-one(::?CLASS:D: --> uint) {
         use nqp;
-        ($!reader ||= (nqp::isge_u($!writer,$!length) ?? $!length !! ++$!writer)) -= 1
+        ($!reader ||= ($!writer >= $!length ?? $!length !! ++$!writer)) -= 1
     }
 
     method time-one(::?CLASS:D:) {
