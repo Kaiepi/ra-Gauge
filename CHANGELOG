@@ -41,3 +41,8 @@ v1.0.1:
 
 v1.0.2:
     - Fix README handling of spaces in input code.
+
+v1.0.3:
+    - Fix off-by-one in initial README peak it/s count calculation.
+    - Avoid orelse precedence quirks with // in the README.
+    - Remove stray "use nqp" after v1.0.1.
