@@ -20,9 +20,9 @@ sub MAIN(
     #|[ The duration in seconds over which timestamps will be aggregated. ]
     Real:D :p(:$period) = 1,
     #|[ The cooldown in seconds performed between each individual benchmark. ]
-    Real:D :c(:$cooldown) = (try 2 / 3 * $jobs * $period orelse 2 / 3 * $*KERNEL.cpu-cores.pred),
+    Real:D :c(:$cooldown) = (try 2 / 3 * $jobs * $period) // (2 / 3 * $*KERNEL.cpu-cores.pred),
     #|[ Whether or not ANSI 24-bit SGR escape sequences should be suppressed.
-        These highlight blocks of it/s counts opneing with newfound maximums. ]
+        These highlight blocks of it/s counts opening with any new maximum. ]
     Bool:D :m(:$mono) = False,
 --> Nil) {
     use MONKEY-SEE-NO-EVAL;
@@ -35,12 +35,12 @@ sub MAIN(
 #=[ Benchmark threads are run once an iteration of any existing threads has
     been exhausted. This is staggered by the cooldown, and by default, allows
     for multiple benchmarks to be taken with a brief overlap of threaded work,
-    reducing the time needed to aggregate results while keeping low overhead. ]
+    reducing the time needed to collect results while keeping low overhead. ]
 
 sub poly(Int:D $next --> Empty) {
     my constant @mark = «\e[48;5;198m \e[48;5;202m \e[48;5;178m \e[48;5;41m \e[48;5;25m \e[48;5;129m»;
     state $mark is default(-1);
-    state $peak is default(0);
+    state $peak is default(-1);
 
     my $jump := $peak < $next;
     $mark += $jump;
@@ -56,7 +56,7 @@ sub poly(Int:D $next --> Empty) {
 }
 
 sub mono(Int:D $next --> Empty) {
-    state $peak is default(0);
+    state $peak is default(-1);
 
     my $jump := $peak < $next;
     $peak max= $next;
