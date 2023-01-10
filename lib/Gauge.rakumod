@@ -289,7 +289,6 @@ class Contract does Iterator {
     }
 
     method step-one(::?CLASS:D: --> uint) {
-        use nqp;
         ($!reader ||= ($!writer >= $!length ?? $!length !! ++$!writer)) -= 1
     }
 
